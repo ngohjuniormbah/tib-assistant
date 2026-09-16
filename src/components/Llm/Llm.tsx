@@ -1,8 +1,9 @@
 import {
   faInfoCircle,
+  faLightbulb,
   faRotateLeft,
-  faTable,
   faSearch,
+  faTable,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -21,9 +22,11 @@ import AssetsContext from '@/components/AssetsProvider/assetsContext';
 import AssetsSelectionPopover from '@/components/AssetsSelectionPopover/AssetsSelectionPopover';
 import useStore from '@/components/AssetsSidebar/hooks/useStore';
 import AssistantInfoModal from '@/components/AssistantCard/AssistantInfoModal';
+import IdeationStarterModal from '@/components/IdeationStarterModal/IdeationStarterModal';
 import ImportComparisonModal from '@/components/ImportComparisonModal/ImportComparisonModal';
 import Message from '@/components/Llm/Message/Message';
 import useLlm from '@/components/Llm/useLlm';
+import OrkgNlQueryModal from '@/components/OrkgNlQueryModal/OrkgNlQueryModal';
 import sidebarsContext from '@/components/SidebarsProvider/sidebarsContext';
 import useIndexedDbStore from '@/components/useIndexedDbStore/useIndexedDbStore';
 import useIndexedDbStores from '@/components/useIndexedDbStores/useIndexedDbStores';
@@ -31,7 +34,6 @@ import { AssetId } from '@/config/assets';
 import ASSISTANTS from '@/config/assistants';
 import getAssetById from '@/lib/getAssetById';
 import { OrkgComparisonResult } from '@/services/orkgComparison';
-import OrkgNlQueryModal from '@/components/OrkgNlQueryModal/OrkgNlQueryModal';
 import { ChatMessage } from '@/types';
 
 const TextareaLlm = dynamic(
@@ -73,6 +75,7 @@ export default function Llm({
 
   const importComparisonModalState = useOverlayState();
   const nlQueryModalState = useOverlayState();
+  const ideationStarterModalState = useOverlayState();
 
   const {
     enabledTools: enabledToolsLocalStorage,
@@ -332,6 +335,7 @@ export default function Llm({
       },
     ]);
   };
+
   const initialAssetsWithoutContent =
     initialAssets?.filter((_, index) => {
       const content = initialAssetsContent?.[index];
@@ -392,6 +396,20 @@ export default function Llm({
             </div>
           </div>
 
+          {assistantId === 'ideation' && (
+            <div className="flex gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="primary"
+                onPress={ideationStarterModalState.open}
+                className="gap-2"
+              >
+                <FontAwesomeIcon icon={faLightbulb} />
+                <span className="hidden sm:inline">Research Starters</span>
+              </Button>
+            </div>
+          )}
+
           {(assistantId === 'relatedLiterature' ||
             assistantId === 'paperRelatedWork') && (
             <div className="flex gap-2 shrink-0">
@@ -427,6 +445,45 @@ export default function Llm({
               </Alert.Description>
             </Alert.Content>
           </Alert>
+        </div>
+      )}
+
+      {assistantId === 'ideation' && messages.length <= 1 && (
+        <div className="mx-3 sm:mx-6 my-2 flex gap-2 flex-wrap items-center">
+          <span className="text-xs text-muted font-medium">Quick Starters:</span>
+          <Button
+            size="sm"
+            variant="secondary"
+            onPress={() =>
+              setInput(
+                'Search recent papers on [Your Research Area] using Semantic Scholar. Identify 3 critical research gaps and propose concrete hypotheses.'
+              )
+            }
+          >
+            Topic Gaps
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onPress={() =>
+              setInput(
+                'Analyze this foundational paper DOI: [10.xxxx/...] using Crossref and Semantic Scholar. Formulate 3 novel research positions addressing its limitations.'
+              )
+            }
+          >
+            Seed DOI
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onPress={() =>
+              setInput(
+                'Retrieve my publications using ORCID: [0000-0002-...]. Based on my research trajectory, propose 3 high-impact future research avenues.'
+              )
+            }
+          >
+            ORCID Trajectory
+          </Button>
         </div>
       )}
 
@@ -490,6 +547,17 @@ export default function Llm({
           isOpen={nlQueryModalState.isOpen}
           onOpenChange={nlQueryModalState.setOpen}
           onQueryComplete={handleOrkgNlQuery}
+        />
+      )}
+
+      {ideationStarterModalState.isOpen && (
+        <IdeationStarterModal
+          isOpen={ideationStarterModalState.isOpen}
+          onOpenChange={ideationStarterModalState.setOpen}
+          onSelectStarter={(prompt) => {
+            setInput(prompt);
+            ideationStarterModalState.close();
+          }}
         />
       )}
     </div>
