@@ -1,4 +1,10 @@
-import { ToggleButton } from '@heroui/react';
+import {
+  faFlask,
+  faTable,
+  faTriangleExclamation,
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Button, ToggleButton } from '@heroui/react';
 import { TextUIPart } from 'ai';
 import { Children, isValidElement, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -126,6 +132,22 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
     );
   };
 
+  const handleDeepDiveAction = (
+    label: string,
+    action: 'experiment' | 'reviewer' | 'matrix'
+  ) => {
+    let prompt = '';
+    const cleanTitle = label.split('\n')[0] || label;
+    if (action === 'experiment') {
+      prompt = `For this research direction:\n"${cleanTitle}"\n\nOutline a publication-grade experimental design: specify the target datasets, evaluation metrics, baseline algorithms to compare against, and essential ablation studies.`;
+    } else if (action === 'reviewer') {
+      prompt = `Act as a skeptical Senior Reviewer 2 for a top conference. What are the 3 strongest technical vulnerabilities, methodological confounders, or reasons to reject this proposed idea:\n"${cleanTitle}"?`;
+    } else if (action === 'matrix') {
+      prompt = `Construct an exhaustive competitive Markdown table contrasting this proposed approach:\n"${cleanTitle}"\nagainst existing state-of-the-art baselines across scalability, accuracy, compute complexity, and domain assumptions.`;
+    }
+    window.dispatchEvent(new CustomEvent('insert-prompt', { detail: prompt }));
+  };
+
   return (
     <div className="my-2 relative w-full leading-relaxed [&_.regular-list]:list-disc [&_.regular-list]:pl-5 [&_ol.regular-list]:list-decimal space-y-3">
       <ReactMarkdown
@@ -249,7 +271,6 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
 
             if (isTaskItem) {
               const childrenArray = Children.toArray(children);
-              // Filter out remark-gfm's default disabled checkbox input
               const filteredChildren = childrenArray.filter(
                 (child) => !(isValidElement(child) && child.type === 'input')
               );
@@ -257,7 +278,7 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
               const isSelected = !!label && !!asset?.includes(label);
 
               return (
-                <li className="list-none my-2">
+                <li className="list-none my-2.5">
                   <div
                     className={`p-4 rounded-2xl border transition-all ${
                       isSelected
@@ -286,8 +307,40 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
                           <polyline points="1 9 7 14 15 4" />
                         </svg>
                       </label>
-                      <div className="flex-1 min-w-0 text-sm leading-relaxed space-y-1 select-auto">
+                      <div className="flex-1 min-w-0 text-sm leading-relaxed space-y-1.5 select-auto">
                         {filteredChildren}
+
+                        {/* 1-Click Interactive Deep Dive Actions */}
+                        <div className="flex flex-wrap gap-1.5 pt-2.5 mt-2 border-t border-border/50 items-center">
+                          <span className="text-xs text-muted font-medium mr-1">Deep Dive:</span>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="gap-1.5 text-xs py-0.5 px-2.5"
+                            onPress={() => handleDeepDiveAction(label, 'experiment')}
+                          >
+                            <FontAwesomeIcon icon={faFlask} className="text-xs text-muted" />
+                            <span>Design Experiment</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="gap-1.5 text-xs py-0.5 px-2.5"
+                            onPress={() => handleDeepDiveAction(label, 'reviewer')}
+                          >
+                            <FontAwesomeIcon icon={faTriangleExclamation} className="text-xs text-muted" />
+                            <span>Stress-Test (Reviewer 2)</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="gap-1.5 text-xs py-0.5 px-2.5"
+                            onPress={() => handleDeepDiveAction(label, 'matrix')}
+                          >
+                            <FontAwesomeIcon icon={faTable} className="text-xs text-muted" />
+                            <span>SOTA Baselines</span>
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>

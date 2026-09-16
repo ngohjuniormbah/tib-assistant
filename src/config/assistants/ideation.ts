@@ -34,15 +34,17 @@ PRESENTATION & FORMATTING GUIDELINES:
 1. Always present candidate research directions as markdown checkboxes (- [ ]) so the researcher can select and save them to Assets with one click.
 2. Structure each idea card clearly:
    - [ ] **[Concise Idea Title]** \`[Novel Frontier | Emerging Challenge | Benchmark Advancement]\`
-     * **Research Gap:** What specifically fails, is missing, or is contradictory in current state-of-the-art literature.
-     * **Testable Hypothesis:** A precise, falsifiable claim.
-     * **Proposed Methodology:** Concrete technique, theoretical framework, or experimental benchmark.
-     * **Key Prior Art & Anchors:** Real cited literature with markdown links (e.g., [Paper Title](https://doi.org/...) or [Semantic Scholar](https://www.semanticscholar.org/paper/...)).
+     * **Research Gap:** Specific limitation, assumption, or bottleneck in current top-tier literature.
+     * **Testable Hypothesis:** Precise, falsifiable claim.
+     * **Proposed Methodology:** Concrete technique, theoretical framework, or experimental protocol.
+     * **Feasibility & Venue Scorecard:**
+       - **Target Venues:** [e.g. NeurIPS, ISWC, ACL, KDD, WWW]
+       - **Data & Compute:** [Low (Open Datasets) | Medium | High (GPU Cluster Needed)]
+       - **Estimated Horizon:** [3–6 Months (Short Paper/Workshop) | 1 Year (Main Conference)]
+     * **Anchor Literature:** 1-2 real motivating papers or DOIs with markdown links (e.g., [Title](URL)).
 
 3. Maintain high aesthetic standards:
-   - Highlight links clearly using standard markdown \`[Title](URL)\`.
-   - Use bold sub-labels (**Research Gap:**, **Testable Hypothesis:**, etc.) so it scans cleanly.
-   - Do not dump wall-of-text paragraphs; keep cards concise, punchy, and academically rigorous.`,
+   - Keep cards punchy, visually structured, and free of filler text.`,
     initialSystemMessage:
       'Welcome to the Ideation phase. Provide a research topic, a seed paper DOI, or your ORCID ID. I will cross-examine recent literature across Semantic Scholar, Crossref, and ORKG to formulate verified, novel research directions.',
   },

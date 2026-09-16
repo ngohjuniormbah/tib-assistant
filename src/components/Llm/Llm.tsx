@@ -121,6 +121,19 @@ export default function Llm({
   });
 
   useEffect(() => {
+    const handleInsertPrompt = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setInput(customEvent.detail);
+        const textarea = document.querySelector('textarea');
+        if (textarea) textarea.focus();
+      }
+    };
+    window.addEventListener('insert-prompt', handleInsertPrompt);
+    return () => window.removeEventListener('insert-prompt', handleInsertPrompt);
+  }, [setInput]);
+
+  useEffect(() => {
     if (messages.length === 0 || isLoading) {
       return;
     }
