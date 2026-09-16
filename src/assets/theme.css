@@ -1,0 +1,121 @@
+/**
+ * TIB AIssistant brand theme for HeroUI v3.
+ *
+ * Shaped like the output of HeroUI's theme builder (https://v3.heroui.com/themes):
+ * semantic tokens in OKLCH, a light block and a dark block, nothing else. HeroUI's
+ * components and Tailwind's `bg-*` / `text-*` / `border-*` utilities both read these,
+ * so this file is the ONLY place a brand colour is written down. Component code uses
+ * the semantic names (`bg-surface-secondary`, `text-muted`, `bg-default`, …) and never
+ * names a colour.
+ *
+ * Loaded from `globals.css` after `@heroui/styles`, so these override the defaults.
+ *
+ * The theme is selected by `ThemeSwitcher` (next-themes' `useTheme()`). The
+ * next-themes provider in `ClientProviders` puts a `light`/`dark` class and
+ * `data-theme` on <html>, and injects a script that applies the stored choice
+ * before first paint so there is no flash.
+ */
+
+:root,
+[data-theme='light'] {
+  /* Native controls (scrollbars, date pickers, autofill) follow the theme. */
+  color-scheme: light;
+
+  /* Brand */
+  --accent: oklch(0.4789 0.186 28.08); /* #ae1313 */
+  --accent-foreground: oklch(1 0 0); /* #ffffff */
+  --link: oklch(0.663 0.1683 22.81); /* #e86161 */
+
+  /* Neutrals. The brand ramp is a cool blue-grey, not Tailwind's warm grey. */
+  --surface-secondary: oklch(0.9684 0.0042 236.5); /* #f2f5f7 */
+  --surface-tertiary: oklch(0.9569 0.0065 208.78); /* #ecf2f3 */
+  --default: oklch(0.9297 0.0118 239.91); /* #e1e9ef */
+  --default-foreground: oklch(0.4618 0.0208 229.43); /* #4d5b62 */
+  --border: oklch(0.9297 0.0118 239.91); /* #e1e9ef */
+  --separator: oklch(0.9297 0.0118 239.91); /* #e1e9ef */
+
+  /*
+   * Body text on surfaces (Card.Description, Alert.Description, secondary labels).
+   * The brand neutral #7994a3 only reaches 2.9:1 against --surface-secondary, which
+   * fails WCAG AA; #5b6d78 keeps the tint and clears it at 4.9:1.
+   */
+  --muted: oklch(0.524 0.0277 234.89); /* #5b6d78 */
+
+  /* Page canvas — the gradient behind every surface. Not a HeroUI token. */
+  --canvas-start: oklch(0.8486 0.0198 230.74); /* #c1d0d8 */
+  --canvas-end: oklch(0.9401 0 89.88); /* #ebebeb */
+
+  /*
+   * A plate behind third-party logos, which are drawn for light backgrounds.
+   * Transparent here — the surface underneath is already light.
+   */
+  --logo-plate: transparent;
+
+  /*
+   * Row-highlight flash. Hex on purpose: framer-motion interpolates hex/rgb,
+   * not oklch, and this value is read from JS and animated.
+   */
+  --highlight: #fff397;
+  --warning: oklch(90.079% 0.14897 93.849);
+  --warning-foreground: oklch(21.03% 0.0059 44.61);
+  --color-info: oklch(87.245% 0.06852 226.489);
+
+  --field-background: var(--surface-secondary);
+  --field-border: var(--border);
+  --field-border-width: 1px;
+  --field-foreground: --var(--default-foreground);
+  --field-placeholder: var(--muted);
+  --field-shadow: none;
+  --radius: 0.5rem;
+  --field-radius: var(--radius);
+}
+
+.dark,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --accent: oklch(0.663 0.1683 22.81); /* #e86161 — lifts off a dark ground */
+  --accent-foreground: oklch(0.22 0.012 235);
+  --link: oklch(0.72 0.15 23);
+
+  --background: oklch(0.22 0.012 235);
+  --foreground: oklch(0.9569 0.0065 208.78);
+
+  --surface: oklch(0.27 0.014 235);
+  --surface-foreground: var(--foreground);
+  --surface-secondary: oklch(0.32 0.016 235);
+  --surface-tertiary: oklch(0.37 0.018 235);
+
+  --overlay: oklch(0.27 0.014 235);
+  --overlay-foreground: var(--foreground);
+
+  --default: oklch(0.37 0.018 235);
+  --default-foreground: var(--foreground);
+  --border: oklch(0.37 0.018 235);
+  --separator: oklch(0.37 0.018 235);
+
+  --muted: oklch(0.75 0.024 220); /* light enough to read on dark surfaces */
+
+  /* Dark mode uses a solid canvas: both stops resolve to --background */
+  --canvas-start: var(--background);
+  --canvas-end: var(--background);
+
+  /*
+   * Partner logos are raster marks drawn for light backgrounds, so they cannot be
+   * inverted or re-tinted. Give them a light plate instead of a dark surface —
+   * a soft off-white rather than pure white so it sits calmer among dark cards.
+   */
+  --logo-plate: oklch(0.88 0.0042 236.5);
+
+  /* Muted amber: the light theme's #fff397 would flare on a dark surface. */
+  --highlight: #6b5a1a;
+
+  /*
+   * Syntax highlighting. prismjs ships a light-only theme whose tokens (#905, #690)
+   * are unreadable on a dark surface; light mode keeps prism's own palette.
+   */
+  --code-punctuation: var(--muted);
+  --code-key: oklch(0.78 0.13 20);
+  --code-string: oklch(0.82 0.13 150);
+  --code-keyword: oklch(0.78 0.12 250);
+}
