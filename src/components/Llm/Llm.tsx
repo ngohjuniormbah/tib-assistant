@@ -23,6 +23,7 @@ import AssetsSelectionPopover from '@/components/AssetsSelectionPopover/AssetsSe
 import useStore from '@/components/AssetsSidebar/hooks/useStore';
 import AssistantInfoModal from '@/components/AssistantCard/AssistantInfoModal';
 import IdeationStarterModal from '@/components/IdeationStarterModal/IdeationStarterModal';
+import IdeationWelcomeHero from '@/components/IdeationWelcomeHero/IdeationWelcomeHero';
 import ImportComparisonModal from '@/components/ImportComparisonModal/ImportComparisonModal';
 import Message from '@/components/Llm/Message/Message';
 import useLlm from '@/components/Llm/useLlm';
@@ -243,7 +244,7 @@ export default function Llm({
             return true;
           })
         );
-      } else if (initialSystemMessage) {
+      } else if (initialSystemMessage && assistantId !== 'ideation') {
         _messages.push({
           id: Date.now().toString(),
           role: 'system',
@@ -345,7 +346,7 @@ export default function Llm({
   const hasMissingAssets = initialAssetsWithoutContent.length > 0;
   const assistant = ASSISTANTS[assistantId];
 
-  const infoAlert = infoBox ? (
+  const infoAlert = infoBox && assistantId !== 'ideation' ? (
     <Alert>
       <Alert.Indicator />
       <Alert.Content>
@@ -448,45 +449,6 @@ export default function Llm({
         </div>
       )}
 
-      {assistantId === 'ideation' && messages.length <= 1 && (
-        <div className="mx-3 sm:mx-6 my-2 flex gap-2 flex-wrap items-center">
-          <span className="text-xs text-muted font-medium">Quick Starters:</span>
-          <Button
-            size="sm"
-            variant="secondary"
-            onPress={() =>
-              setInput(
-                'Search recent papers on [Your Research Area] using Semantic Scholar. Identify 3 critical research gaps and propose concrete hypotheses.'
-              )
-            }
-          >
-            Topic Gaps
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onPress={() =>
-              setInput(
-                'Analyze this foundational paper DOI: [10.xxxx/...] using Crossref and Semantic Scholar. Formulate 3 novel research positions addressing its limitations.'
-              )
-            }
-          >
-            Seed DOI
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onPress={() =>
-              setInput(
-                'Retrieve my publications using ORCID: [0000-0002-...]. Based on my research trajectory, propose 3 high-impact future research avenues.'
-              )
-            }
-          >
-            ORCID Trajectory
-          </Button>
-        </div>
-      )}
-
       <ScrollShadow
         className="w-full mb-4 overflow-y-scroll overflow-x-hidden transition-[flex-grow] ease-in-out h-full px-3 sm:px-6 pt-3"
         ref={messagesContainerRef}
@@ -497,6 +459,11 @@ export default function Llm({
           {isCompactViewport && infoAlert && (
             <div className="mb-3 shrink-0">{infoAlert}</div>
           )}
+
+          {assistantId === 'ideation' && messages.length === 0 && (
+            <IdeationWelcomeHero />
+          )}
+
           {messages.map((message) => (
             <Message
               handleDeleteMessagePart={handleDeleteMessagePart}

@@ -14,6 +14,7 @@ import {
   Label,
   Modal,
   Tabs,
+  TextField,
 } from '@heroui/react';
 import { FormEvent, useState } from 'react';
 
@@ -71,9 +72,9 @@ export default function IdeationStarterModal({
             </Modal.Heading>
           </Modal.Header>
 
-          <Modal.Body className="space-y-4">
+          <Modal.Body className="flex flex-col gap-4">
             <p className="text-sm text-muted">
-              Choose a kickstart method below to ground your research ideation in verifiable scholarly sources:
+              Select a research kickstart method to ground your brainstorming in verified scientific literature:
             </p>
 
             <Tabs
@@ -102,21 +103,22 @@ export default function IdeationStarterModal({
               </Tabs.ListContainer>
 
               <Tabs.Panel id="doi" className="pt-4">
-                <form onSubmit={handleDoiSubmit} className="space-y-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="starter-doi">Foundational Paper DOI or URL</Label>
+                <form onSubmit={handleDoiSubmit} className="flex flex-col gap-4">
+                  <TextField className="w-full flex flex-col gap-2">
+                    <Label className="text-sm font-medium text-foreground">
+                      Foundational Paper DOI or URL
+                    </Label>
                     <Input
-                      id="starter-doi"
                       placeholder="e.g. 10.1038/s41586-020-2649-2"
                       value={doi}
                       onChange={(e) => setDoi(e.target.value)}
                       required
                     />
-                    <Description>
-                      Fetches paper metadata to discover unexplored limitations and open questions.
+                    <Description className="text-xs text-muted">
+                      Extracts paper metadata and open challenges to formulate new directions.
                     </Description>
-                  </div>
-                  <div className="flex justify-end">
+                  </TextField>
+                  <div className="flex justify-end pt-2">
                     <Button type="submit" variant="primary" isDisabled={!doi.trim()}>
                       Generate Ideas from Paper
                     </Button>
@@ -125,44 +127,46 @@ export default function IdeationStarterModal({
               </Tabs.Panel>
 
               <Tabs.Panel id="orcid" className="pt-4">
-                <form onSubmit={handleOrcidSubmit} className="space-y-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="starter-orcid">ORCID Identifier</Label>
+                <form onSubmit={handleOrcidSubmit} className="flex flex-col gap-4">
+                  <TextField className="w-full flex flex-col gap-2">
+                    <Label className="text-sm font-medium text-foreground">
+                      ORCID Identifier
+                    </Label>
                     <Input
-                      id="starter-orcid"
                       placeholder="e.g. 0000-0002-1825-0097"
                       value={orcid}
                       onChange={(e) => setOrcid(e.target.value)}
                       required
                     />
-                    <Description>
-                      Retrieves your published works to suggest natural next frontiers for your research career.
+                    <Description className="text-xs text-muted">
+                      Analyzes your past publications to identify natural next research frontiers.
                     </Description>
-                  </div>
-                  <div className="flex justify-end">
+                  </TextField>
+                  <div className="flex justify-end pt-2">
                     <Button type="submit" variant="primary" isDisabled={!orcid.trim()}>
-                      Analyze My Research Trajectory
+                      Analyze Research Trajectory
                     </Button>
                   </div>
                 </form>
               </Tabs.Panel>
 
               <Tabs.Panel id="topic" className="pt-4">
-                <form onSubmit={handleTopicSubmit} className="space-y-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="starter-topic">Field or Research Area</Label>
+                <form onSubmit={handleTopicSubmit} className="flex flex-col gap-4">
+                  <TextField className="w-full flex flex-col gap-2">
+                    <Label className="text-sm font-medium text-foreground">
+                      Research Field or Keyword
+                    </Label>
                     <Input
-                      id="starter-topic"
                       placeholder="e.g. Knowledge Graphs in Medical Question Answering"
                       value={topic}
                       onChange={(e) => setTopic(e.target.value)}
                       required
                     />
-                    <Description>
-                      Probes Semantic Scholar for recent benchmark papers and open literature debates.
+                    <Description className="text-xs text-muted">
+                      Probes Semantic Scholar and top conferences for recent unresolved gaps.
                     </Description>
-                  </div>
-                  <div className="flex justify-end">
+                  </TextField>
+                  <div className="flex justify-end pt-2">
                     <Button type="submit" variant="primary" isDisabled={!topic.trim()}>
                       Discover Topic Gaps
                     </Button>
