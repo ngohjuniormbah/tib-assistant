@@ -121,19 +121,47 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
   const handleChangeTopics = ({ label }: { label: string }) => {
     update(
       asset?.includes(label)
-        ? asset.filter((asset) => asset !== label)
+        ? asset.filter((item) => item !== label)
         : [...(asset ?? []), label]
     );
   };
 
   return (
-    <div className="my-2 relative w-full [&_.regular-list]:list-disc [&_.regular-list]:pl-5 [&_ol.regular-list]:list-decimal">
+    <div className="my-2 relative w-full leading-relaxed [&_.regular-list]:list-disc [&_.regular-list]:pl-5 [&_ol.regular-list]:list-decimal space-y-3">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          a: ({ href, children }) => {
+            const isExternal = href?.startsWith('http');
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-link font-medium underline underline-offset-3 hover:text-accent transition-colors inline-flex items-center gap-1"
+              >
+                <span>{children}</span>
+                {isExternal && (
+                  <svg
+                    className="size-3 inline-block shrink-0 opacity-70"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                )}
+              </a>
+            );
+          },
           p: ({ children }) => {
             if (selectedOutputAsset !== 'bibliography') {
-              return <p>{children}</p>;
+              return <p className="mb-2 leading-relaxed">{children}</p>;
             }
             const text = extractTextFromChildren(children);
             const regex =
@@ -166,7 +194,7 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
               nodes.push(
                 <span
                   key={`${canonicalId}-${start}`}
-                  className="inline-flex items-center gap-1"
+                  className="inline-flex items-center gap-1 mx-1"
                 >
                   <ToggleButton
                     isSelected={isInBibliography}
@@ -181,7 +209,9 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
                   >
                     {isInBibliography ? '✓' : '+'}
                   </ToggleButton>
-                  <span>{full}</span>
+                  <span className="font-mono text-xs bg-surface-tertiary px-1.5 py-0.5 rounded border border-border">
+                    {full}
+                  </span>
                 </span>
               );
               lastIndex = regex.lastIndex;
@@ -189,7 +219,7 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
             if (lastIndex < text.length) {
               nodes.push(text.slice(lastIndex));
             }
-            return <p>{nodes}</p>;
+            return <p className="mb-2 leading-relaxed">{nodes}</p>;
           },
           ul: ({ children, ...props }) => {
             const isTaskList =
@@ -198,16 +228,16 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
                 undefined;
 
             if (isTaskList) {
-              return <ul className="flex flex-col gap-3 my-2">{children}</ul>;
+              return <ul className="flex flex-col gap-3 my-3 list-none pl-0">{children}</ul>;
             }
             return (
-              <ul {...props?.node?.properties} className="regular-list">
+              <ul {...props?.node?.properties} className="regular-list space-y-1 mb-2">
                 {children}
               </ul>
             );
           },
           ol: ({ children, ...props }) => (
-            <ol {...props?.node?.properties} className="regular-list">
+            <ol {...props?.node?.properties} className="regular-list space-y-1 mb-2">
               {children}
             </ol>
           ),
@@ -217,44 +247,50 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
               props.node.properties.className.includes('task-list-item') !==
                 undefined;
 
-            const label = extractTextFromChildren(children);
-
             if (isTaskItem) {
-              // Native input rather than HeroUI's checkbox: HeroUI keeps the
-              // real input visually hidden and focuses it programmatically when
-              // the label is pressed, which makes the browser scroll it into
-              // view and jumps the chat. A visible input is focused by the
-              // browser itself, without the scroll.
+              const childrenArray = Children.toArray(children);
+              // Filter out remark-gfm's default disabled checkbox input
+              const filteredChildren = childrenArray.filter(
+                (child) => !(isValidElement(child) && child.type === 'input')
+              );
+              const label = extractTextFromChildren(filteredChildren).trim();
+              const isSelected = !!label && !!asset?.includes(label);
+
               return (
-                <li>
-                  <label className="inline-flex items-center gap-3 text-sm font-medium cursor-pointer">
-                    <span className="relative inline-flex shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={!!label && !!asset?.includes(label)}
-                        onChange={() =>
-                          handleChangeTopics({
-                            label,
-                          })
-                        }
-                        className="peer size-4 appearance-none rounded-md border border-field-border bg-field outline-none checked:border-accent checked:bg-accent focus-visible:focus-ring cursor-pointer"
-                      />
-                      {/* Mirrors HeroUI's checkbox indicator so the two look alike. */}
-                      <svg
-                        aria-hidden="true"
-                        viewBox="0 0 17 18"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2.5}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="pointer-events-none absolute top-1/2 left-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 text-accent-foreground opacity-0 peer-checked:opacity-100"
-                      >
-                        <polyline points="1 9 7 14 15 4" />
-                      </svg>
-                    </span>
-                    <span className="select-auto">{label}</span>
-                  </label>
+                <li className="list-none my-2">
+                  <div
+                    className={`p-4 rounded-2xl border transition-all ${
+                      isSelected
+                        ? 'bg-surface-secondary border-accent/60 shadow-sm'
+                        : 'bg-surface-secondary/50 border-border hover:border-muted/60'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <label className="relative inline-flex shrink-0 mt-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleChangeTopics({ label })}
+                          className="peer size-4.5 appearance-none rounded-md border border-field-border bg-field outline-none checked:border-accent checked:bg-accent focus-visible:focus-ring cursor-pointer transition-colors"
+                        />
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 17 18"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="pointer-events-none absolute top-1/2 left-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 text-accent-foreground opacity-0 peer-checked:opacity-100"
+                        >
+                          <polyline points="1 9 7 14 15 4" />
+                        </svg>
+                      </label>
+                      <div className="flex-1 min-w-0 text-sm leading-relaxed space-y-1 select-auto">
+                        {filteredChildren}
+                      </div>
+                    </div>
+                  </div>
                 </li>
               );
             }
