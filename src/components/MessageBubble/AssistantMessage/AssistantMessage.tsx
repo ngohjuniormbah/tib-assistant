@@ -18,6 +18,10 @@ import {
   normalizeCitationId,
 } from '@/lib/bibliographyUtils';
 import { isIdeaSelected, parseIdeaItem } from '@/lib/ideationUtils';
+import {
+  isQuestionSelected,
+  parseResearchQuestionItem,
+} from '@/lib/researchQuestionUtils';
 import { getItemById } from '@/services/orkgAsk';
 import { getPaperById } from '@/services/semanticScholar';
 
@@ -126,8 +130,9 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
   };
 
   const handleChangeTopics = ({ label }: { label: string }) => {
+    const currentList = asset ?? [];
+
     if (selectedOutputAsset === 'ideationTopics') {
-      const currentList = asset ?? [];
       const alreadySelected = isIdeaSelected(currentList, label);
       if (alreadySelected) {
         const filtered = currentList.filter(
@@ -137,6 +142,20 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
       } else {
         const structuredIdea = parseIdeaItem(label);
         update([...currentList, JSON.stringify(structuredIdea)]);
+      }
+    } else if (selectedOutputAsset === 'researchQuestions') {
+      const alreadySelected = isQuestionSelected(currentList, label);
+      if (alreadySelected) {
+        const filtered = currentList.filter(
+          (item) => !isQuestionSelected([item], label)
+        );
+        update(filtered);
+      } else {
+        const parsedQuestion = parseResearchQuestionItem(
+          label,
+          currentList.length + 1
+        );
+        update([...currentList, JSON.stringify(parsedQuestion)]);
       }
     } else {
       update(
@@ -305,7 +324,9 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
               const isSelected =
                 selectedOutputAsset === 'ideationTopics'
                   ? isIdeaSelected(asset ?? [], label)
-                  : !!label && !!asset?.includes(label);
+                  : selectedOutputAsset === 'researchQuestions'
+                    ? isQuestionSelected(asset ?? [], label)
+                    : !!label && !!asset?.includes(label);
 
               return (
                 <li className="list-none my-2.5">

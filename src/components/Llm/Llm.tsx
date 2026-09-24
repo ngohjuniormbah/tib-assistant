@@ -34,6 +34,11 @@ import useIndexedDbStores from '@/components/useIndexedDbStores/useIndexedDbStor
 import { AssetId } from '@/config/assets';
 import ASSISTANTS from '@/config/assistants';
 import getAssetById from '@/lib/getAssetById';
+import { formatIdeaForChat, parseIdeaItem } from '@/lib/ideationUtils';
+import {
+  formatQuestionForChat,
+  parseResearchQuestionItem,
+} from '@/lib/researchQuestionUtils';
 import { OrkgComparisonResult } from '@/services/orkgComparison';
 import { ChatMessage } from '@/types';
 
@@ -155,6 +160,20 @@ export default function Llm({
     content: string[];
   }) => {
     const asset = getAssetById(assetId);
+    if (assetId === 'ideationTopics') {
+      const formatted = content
+        .map((item) => formatIdeaForChat(parseIdeaItem(item)))
+        .join('\n');
+      return `${asset ? asset.name : assetId}:\n${formatted}`;
+    }
+    if (assetId === 'researchQuestions') {
+      const formatted = content
+        .map((item, index) =>
+          formatQuestionForChat(parseResearchQuestionItem(item, index + 1))
+        )
+        .join('\n');
+      return `${asset ? asset.name : assetId}:\n${formatted}`;
+    }
     return `${asset ? asset.name : assetId}: ${content.join(', ')}`;
   };
 
@@ -433,6 +452,7 @@ export default function Llm({
           )}
 
           {(assistantId === 'ideation' ||
+            assistantId === 'researchQuestions' ||
             assistantId === 'relatedLiterature' ||
             assistantId === 'paperRelatedWork') && (
             <div className="flex gap-2 shrink-0">

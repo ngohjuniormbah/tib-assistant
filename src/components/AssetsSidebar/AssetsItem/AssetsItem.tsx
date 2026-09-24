@@ -6,6 +6,7 @@ import SubAssetsItem from '@/components/AssetsSidebar/AssetsItem/SubAssetsItem/S
 import BibliographyAsset from '@/components/AssetsSidebar/BibliographyAsset/BibliographyAsset';
 import ExpandableItem from '@/components/AssetsSidebar/ExpandableItem/ExpandableItem';
 import IdeationAsset from '@/components/AssetsSidebar/IdeationAsset/IdeationAsset';
+import ResearchQuestionsAsset from '@/components/AssetsSidebar/ResearchQuestionsAsset/ResearchQuestionsAsset';
 import EditableList from '@/components/EditableList/EditableList';
 import useIndexedDbStore from '@/components/useIndexedDbStore/useIndexedDbStore';
 import { AssetId } from '@/config/assets';
@@ -60,6 +61,12 @@ export default function AssetsItem({ asset }: Props) {
 
   if (_asset?.id === 'ideationTopics') {
     return <IdeationAsset enableInput={asset.isInputAsset} key={asset.id} />;
+  }
+
+  if (_asset?.id === 'researchQuestions') {
+    return (
+      <ResearchQuestionsAsset enableInput={asset.isInputAsset} key={asset.id} />
+    );
   }
 
   const assetContent =

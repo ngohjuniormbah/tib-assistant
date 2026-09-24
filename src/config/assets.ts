@@ -23,7 +23,7 @@ const ASSETS: Asset[] = [
   {
     id: 'researchQuestions',
     name: 'Research questions',
-    type: 'text',
+    type: 'json',
   },
   {
     id: 'comparisonMatrix',
