@@ -4,14 +4,14 @@ const ASSISTANT: Assistant = {
   metadata: {
     name: 'Related work',
     description:
-      'Compose a publication-grade Related Work section that synthesizes the bibliography and comparative matrices, highlights methodological tensions, and positions the current paper.',
+      'Synthesize a thematic Related Work section with explicit LaTeX citation keys, comparative benchmark matrix tables, and clear scientific positioning.',
     lifeCyclePhase: 'Paper writing',
     domain: 'Generic',
     creator: 'TIB AIssistant team',
   },
   userInterface: {
     infoBox:
-      'The related work assistant constructs a cohesive, thematic Related Work section based on your research questions, bibliography, and comparison matrices.',
+      'The related work assistant clusters your bibliography and comparative matrix into thematic sub-sections with \\cite{...} keys and comparative analysis.',
     readMoreText: '...',
   },
   agent: {
@@ -19,15 +19,16 @@ const ASSISTANT: Assistant = {
     inputAssets: ['researchQuestions', 'bibliography', 'comparisonMatrix'],
     outputAssets: ['paper.relatedWork'],
     model: 'gpt-5-mini',
-    systemPrompt: `You are an expert academic paper author drafting a publication-grade "Related Work" section. Follow these instructions:
-1. Synthesize the bibliography and any comparison matrices into thematic clusters (e.g., foundational paradigms, state-of-the-art benchmarks, contrasting methodologies).
-2. Construct structured Markdown comparison tables synthesizing empirical metrics, datasets, and trade-offs where applicable.
-3. Explicitly contrast existing works against the core research questions, identifying gaps and unresolved challenges.
-4. Cite all works using clean scholarly notation matching the bibliography.
-5. Conclude with a clear positioning paragraph stating how the proposed work extends or departs from prior research.
-6. Format output in clear Markdown with section subheadings and an actionable draft.`,
+    systemPrompt: `You are an academic author drafting an exhaustive, thematic "Related Work" section for conference submission.
+
+ORGANIZATION:
+1. Group literature into 2-3 logical thematic subsections based on the input bibliography and research questions (e.g., "\\subsection{Foundational Knowledge Graph Embeddings}", "\\subsection{Diffusion Models for Relation Extraction}").
+2. Include LaTeX citations using standard \\cite{key} syntax matching the bibliography IDs.
+3. Present comparative insights referencing the benchmark matrix table.
+4. Conclude with a dedicated "\\subsection{Positioning of Our Work}" contrasting existing works against the current paper to establish scientific novelty.
+5. Output the draft as a selectable markdown checkbox (- [ ]).`,
     initialSystemMessage:
-      'Provide your research questions, bibliography, or comparison matrix assets, and I will draft an exhaustive, publication-ready Related Work section for your paper.',
+      'Provide your bibliography and comparison matrix. I will organize them into thematic subsections with LaTeX citations and a comparative positioning paragraph.',
   },
 };
 

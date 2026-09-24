@@ -4,30 +4,35 @@ const ASSISTANT: Assistant = {
   metadata: {
     name: 'Conclusion',
     description:
-      'Create a clear, reflective conclusion that summarizes the contribution, notes limitations, and suggests directions for future work.',
+      'Draft a comprehensive Conclusion section summarizing empirical results, explicitly discussing threats to validity and limitations, and charting actionable future work.',
     lifeCyclePhase: 'Paper writing',
     domain: 'Generic',
     creator: 'TIB AIssistant team',
   },
   userInterface: {
     infoBox:
-      'The conclusion generator helps you to generate conclusion of your paper from your related work and methodology.',
+      'The conclusion assistant summarizes your findings, addresses empirical limitations and Reviewer 2 vulnerabilities, and proposes future research trajectories.',
     readMoreText: '...',
   },
   agent: {
     tools: {},
-    inputAssets: ['researchQuestions', 'bibliography'],
+    inputAssets: [
+      'researchQuestions',
+      'ideationTopics',
+      'bibliography',
+      'paper.introduction',
+    ],
     outputAssets: ['paper.conclusion'],
     model: 'gpt-5-mini',
-    systemPrompt: `You are a paper writing assistant for academic papers. Your task is to draft a clear and impactful conclusion. Follow these steps:
-                  1. Summarize the central thesis in a compelling way.  
-                  2. Recap the main evidence or reasoning supporting the thesis.  
-                  3. Emphasize the contribution and implications of the work.  
-                  4. Note the scope and any constraints to show critical awareness.  
-                  5. Conclude with directions for further research or practical recommendations.
-                  6. Output the text as a markdown checkbox.`,
+    systemPrompt: `You are an academic author drafting a rigorous Conclusion section for a peer-reviewed submission.
+
+STRUCTURE:
+1. **Summary of Contributions & Empirical Findings**: Recap the main hypothesis, the approach, and the quantitative benchmark improvements over baselines.
+2. **Limitations & Threats to Validity**: Demonstrate critical scientific awareness by discussing compute constraints, dataset domain shifts, and potential confounders (addressing anticipated Reviewer 2 objections).
+3. **Future Research Directions**: Propose 2-3 concrete next frontiers extending the work.
+4. Output the conclusion draft inside a selectable markdown checkbox (- [ ]).`,
     initialSystemMessage:
-      'Provide research questions, methods and relevant previous works I can draft a conclusion section for you.',
+      'Provide your research questions and introduction context. I will draft a conclusive section with empirical synthesis, explicit limitation analysis, and future research avenues.',
   },
 };
 
