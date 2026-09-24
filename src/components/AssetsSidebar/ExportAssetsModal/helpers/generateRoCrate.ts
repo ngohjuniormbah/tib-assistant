@@ -2,6 +2,11 @@ import JSZip from 'jszip';
 
 import { AssetId } from '@/config/assets';
 import { DbAsset } from '@/db/db';
+import { cslToBibtex } from '@/lib/bibliographyUtils';
+import {
+  matrixToLatex,
+  parseMarkdownTableToMatrix,
+} from '@/lib/comparisonMatrixUtils';
 import getAssetById from '@/lib/getAssetById';
 
 type LicenseType = keyof typeof LICENSE_JSON;
@@ -37,10 +42,10 @@ const LICENSE_JSON = {
   },
 };
 
-const ASSET_TYPE_TO_ENCODING_FORMAT = {
+const ASSET_TYPE_TO_ENCODING_FORMAT: Record<string, string> = {
   json: 'application/json',
   text: 'text/plain',
-  object: 'unknown',
+  object: 'application/json',
 };
 
 const ASSET_TO_DEO_TYPE: Record<AssetId, string[]> = {
@@ -53,6 +58,10 @@ const ASSET_TO_DEO_TYPE: Record<AssetId, string[]> = {
   researchQuestions: ['https://schema.org/Question'],
   ideationTopics: ['https://schema.org/about'],
   comparisonMatrix: ['http://purl.org/spar/doco/Table'],
+  reviewReport: [
+    'http://purl.org/spar/doco/Section',
+    'https://schema.org/Review',
+  ],
   'paper.introduction': ['http://purl.org/spar/doco/Introduction'],
   'paper.abstract': ['http://purl.org/spar/doco/Abstract'],
   'paper.conclusion': ['http://purl.org/spar/doco/Conclusion'],
@@ -71,9 +80,9 @@ export default async function generateRoCrate({
   const data = Object.fromEntries(formData);
   const selectedAssets = formData.getAll('selectedAssets');
 
-  const authorName = data.authorName as string;
-  const license = data.license as LicenseType | 'other';
-  const otherLicense = data.otherLicense as string;
+  const authorName = (data.authorName as string) || 'Anonymous Researcher';
+  const license = (data.license as LicenseType | 'other') || 'CC-BY';
+  const otherLicense = (data.otherLicense as string) || 'Custom License';
 
   const licenseText =
     license === 'other'
@@ -88,28 +97,35 @@ export default async function generateRoCrate({
     license === 'other' ? 'license' : LICENSE_JSON[license]?.['@id'];
 
   const zip = new JSZip();
-  const zipFolder = zip.folder('assets_export');
+  const zipFolder = zip.folder('research_project_export');
   if (!zipFolder) {
     console.error('Failed to create zip folder');
     return;
   }
-  const roCrateAssets: {
+
+  const roCrateAssets: Array<{
     '@id': string;
     '@type': string;
     name: string;
     encodingFormat: string;
     contentSize: number;
-    additionalType?: { '@id': string }[];
-  }[] = [];
-  const roCrateAssetLinks: { '@id': string }[] = [];
+    additionalType?: Array<{ '@id': string }>;
+  }> = [];
+  const roCrateAssetLinks: Array<{ '@id': string }> = [];
 
+  // Helper to lookup asset value
+  const getAssetValue = (id: string): string[] => {
+    return assetsDatabase?.find((a) => a.assetId === id)?.value ?? [];
+  };
+
+  // 1. Export Selected Raw Assets
   selectedAssets.forEach((assetId) => {
     const asset = assetsDatabase?.find((a) => a.assetId === assetId);
     if (asset) {
       const assetInfo = getAssetById(asset.assetId);
       if (assetInfo) {
         const extension = assetInfo.type === 'json' ? '.jsonl' : '.txt';
-        const fileName = asset.assetId + extension;
+        const fileName = `assets/${asset.assetId}${extension}`;
         const fileContent = asset.value.join('\n') || '';
         zipFolder.file(fileName, fileContent);
 
@@ -117,7 +133,8 @@ export default async function generateRoCrate({
           '@id': fileName,
           '@type': 'CreativeWork',
           name: assetInfo.name,
-          encodingFormat: ASSET_TYPE_TO_ENCODING_FORMAT[assetInfo.type],
+          encodingFormat:
+            ASSET_TYPE_TO_ENCODING_FORMAT[assetInfo.type] || 'text/plain',
           contentSize: new Blob([fileContent]).size,
           additionalType:
             ASSET_TO_DEO_TYPE[asset.assetId]?.map((type: string) => ({
@@ -131,6 +148,122 @@ export default async function generateRoCrate({
     }
   });
 
+  // 2. Compile LaTeX Manuscript & refs.bib
+  const titleVal = getAssetValue('paper.title');
+  const abstractVal = getAssetValue('paper.abstract');
+  const introVal = getAssetValue('paper.introduction');
+  const relatedVal = getAssetValue('paper.relatedWork');
+  const conclusionVal = getAssetValue('paper.conclusion');
+  const bibVal = getAssetValue('bibliography');
+  const matrixVal = getAssetValue('comparisonMatrix');
+
+  const paperTitle =
+    titleVal[0]?.replace(/^#+\s*/, '').trim() ||
+    'Scientific Research Manuscript';
+  const bibtexContent = cslToBibtex(bibVal);
+  const latexTables = matrixVal
+    .map((m, idx) =>
+      matrixToLatex(parseMarkdownTableToMatrix(m, `Benchmark Table ${idx + 1}`))
+    )
+    .join('\n\n');
+
+  const mainTexContent = `\\documentclass[11pt,a4paper]{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{amsmath,amssymb,amsfonts}
+\\usepackage{booktabs}
+\\usepackage{microtype}
+\\usepackage{hyperref}
+\\usepackage{cite}
+\\usepackage{geometry}
+\\geometry{margin=1in}
+
+\\title{\\textbf{${paperTitle}}}
+\\author{
+  \\textbf{${authorName}} \\\\
+  Leibniz Information Centre for Science and Technology (TIB)
+}
+\\date{\\today}
+
+\\begin{document}
+\\maketitle
+
+\\begin{abstract}
+${abstractVal.join('\n\n') || 'Abstract under preparation.'}
+\\end{abstract}
+
+\\section{Introduction}
+${introVal.join('\n\n') || 'Introduction under preparation.'}
+
+\\section{Related Work}
+${relatedVal.join('\n\n') || 'Related work under preparation.'}
+
+${latexTables ? `\\subsection{Benchmark Comparison}\\n${latexTables}\\n` : ''}
+
+\\section{Conclusion}
+${conclusionVal.join('\n\n') || 'Conclusion under preparation.'}
+
+\\bibliographystyle{plain}
+\\bibliography{refs}
+
+\\end{document}`;
+
+  zipFolder.file('manuscript/main.tex', mainTexContent);
+  zipFolder.file('manuscript/refs.bib', bibtexContent);
+  roCrateAssetLinks.push({ '@id': 'manuscript/main.tex' });
+  roCrateAssetLinks.push({ '@id': 'manuscript/refs.bib' });
+
+  // 3. Export ORKG Contribution Graph Payload (orkg-bundle.json)
+  const orkgContributionBundle = {
+    paper: {
+      title: paperTitle,
+      authors: [{ label: authorName }],
+      publicationYear: new Date().getFullYear(),
+      researchField: 'Computer Science',
+      contributions: [
+        {
+          name: 'Core Contribution',
+          values: {
+            'Research Questions': getAssetValue('researchQuestions').map(
+              (q) => ({ text: q })
+            ),
+            'Comparative Matrices': matrixVal.map((m) => ({ text: m })),
+            'Synthesis Findings': conclusionVal.map((c) => ({ text: c })),
+          },
+        },
+      ],
+    },
+    provenance: {
+      generator: 'TIB AIssistant',
+      version: '2.3.3',
+      exportDate: new Date().toISOString(),
+      license: licenseUrl,
+    },
+  };
+  const orkgBundleString = JSON.stringify(orkgContributionBundle, null, 2);
+  zipFolder.file('orkg/orkg-contribution-bundle.json', orkgBundleString);
+  roCrateAssetLinks.push({ '@id': 'orkg/orkg-contribution-bundle.json' });
+
+  // 4. Generate README.md Project Summary
+  const readmeContent = `# ${paperTitle}
+
+**Principal Investigator / Author:** ${authorName}  
+**Platform:** TIB AIssistant (Leibniz Information Centre for Science and Technology)  
+**Export Date:** ${new Date().toLocaleDateString()}  
+**License:** ${license}  
+
+---
+
+## Included Artifacts:
+- **\`manuscript/main.tex\`**: Complete LaTeX paper source code with integrated sections.
+- **\`manuscript/refs.bib\`**: Formatted BibTeX bibliography.
+- **\`orkg/orkg-contribution-bundle.json\`**: Contribution graph payload ready for import into the Open Research Knowledge Graph (ORKG).
+- **\`assets/\`**: Individual raw research lifecycle assets (Ideation, Research Questions, Matrices, Reviews).
+- **\`ro-crate-metadata.json\`**: Conforming W3C RO-Crate 1.1 provenance descriptor.
+`;
+  zipFolder.file('README.md', readmeContent);
+  roCrateAssetLinks.push({ '@id': 'README.md' });
+
+  // 5. Build Conforming RO-Crate 1.1 Metadata
   const provenanceData = {
     '@context': 'https://w3id.org/ro/crate/1.1/context',
     '@graph': [
@@ -143,17 +276,14 @@ export default async function generateRoCrate({
       {
         '@id': './',
         '@type': 'Dataset',
-        name: 'Exported assets from the TIB AIssistant for a research project',
+        name: paperTitle,
         description:
-          'This RO-Crate contains assets exported from the TIB AIssistant. Normally, individual assets are used as building blocks for research projects and eventually used in publications.',
+          'Comprehensive scholarly research bundle exported from the TIB AIssistant research lifecycle platform, including LaTeX manuscript, ORKG contribution graph, and provenance metadata.',
         datePublished: new Date().toISOString(),
         license: licenseUrl,
         author: [
           {
             '@id': '#author',
-          },
-          {
-            '@id': '#chatgpt',
           },
         ],
         hasPart: roCrateAssetLinks,
@@ -164,32 +294,32 @@ export default async function generateRoCrate({
         name: authorName,
       },
       {
-        '@id': '#chatgpt',
+        '@id': '#tib-aissistant',
         '@type': 'SoftwareApplication',
-        name: 'ChatGPT',
-        version: '4.0',
-        url: 'https://openai.com/chatgpt',
-        description:
-          'ChatGPT, an AI language model developed by OpenAI, used for generating or assisting with asset creation.',
-        creator: { '@id': 'https://openai.com/' },
-      },
-      {
-        '@id': 'https://openai.com/',
-        '@type': 'Organization',
-        name: 'OpenAI',
-        url: 'https://openai.com',
+        name: 'TIB AIssistant',
+        version: '2.3.3',
+        url: 'https://github.com/ngohjuniormbah/tib-assistant',
+        creator: {
+          '@id': 'https://www.tib.eu/',
+          '@type': 'Organization',
+          name: 'Technische Informationsbibliothek (TIB)',
+        },
       },
       licenseText,
       ...roCrateAssets,
     ],
   };
 
-  zipFolder.file('ro-crate-metadata.json', JSON.stringify(provenanceData));
+  zipFolder.file(
+    'ro-crate-metadata.json',
+    JSON.stringify(provenanceData, null, 2)
+  );
 
+  // Trigger browser download
   const content = await zip.generateAsync({ type: 'blob' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(content);
-  link.download = `exported_assets.zip`;
+  link.download = `TIB_AIssistant_Project_Export.zip`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

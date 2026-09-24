@@ -9,51 +9,11 @@ import { Button } from '@heroui/react';
 import { Base64 } from 'js-base64';
 
 import useIndexedDbStore from '@/components/useIndexedDbStore/useIndexedDbStore';
+import { cslToBibtex } from '@/lib/bibliographyUtils';
 import {
   matrixToLatex,
   parseMarkdownTableToMatrix,
 } from '@/lib/comparisonMatrixUtils';
-
-function generateBibtexKey(
-  item: Record<string, unknown>,
-  index: number
-): string {
-  if (item.id && typeof item.id === 'string') {
-    return item.id.replace(/[^a-zA-Z0-9_-]/g, '');
-  }
-  const firstAuthor =
-    Array.isArray(item.author) && item.author[0]
-      ? (
-          item.author[0].family ||
-          item.author[0].literal ||
-          'author'
-        ).toLowerCase()
-      : 'author';
-  const cleanAuthor = String(firstAuthor).replace(/[^a-zA-Z]/g, '');
-  return `${cleanAuthor}${index + 1}`;
-}
-
-function formatBibtexAuthors(authors: unknown): string {
-  if (!Array.isArray(authors) || authors.length === 0) {
-    return 'Unknown Author';
-  }
-  return authors
-    .map((author) => {
-      if (typeof author === 'string') return author;
-      if (author && typeof author === 'object') {
-        const a = author as {
-          family?: string;
-          given?: string;
-          literal?: string;
-        };
-        if (a.family && a.given) return `${a.family}, ${a.given}`;
-        if (a.family) return a.family;
-        if (a.literal) return a.literal;
-      }
-      return 'Author';
-    })
-    .join(' and ');
-}
 
 export default function OverleafButton() {
   const { asset: bibliography } = useIndexedDbStore({
@@ -84,41 +44,8 @@ export default function OverleafButton() {
     assetId: 'paper.conclusion',
   });
 
-  // 1. Build BibTeX file content
-  const bibtexEntries =
-    bibliography
-      ?.map((rawItem, index) => {
-        try {
-          const item = JSON.parse(rawItem) as Record<string, unknown>;
-          const key = generateBibtexKey(item, index);
-          const title = (item.title as string) || 'Untitled';
-          const authorStr = formatBibtexAuthors(item.author);
-          const year =
-            item.issued &&
-            typeof item.issued === 'object' &&
-            'date-parts' in item.issued &&
-            Array.isArray(
-              (item.issued as { 'date-parts': number[][] })['date-parts']?.[0]
-            )
-              ? (item.issued as { 'date-parts': number[][] })[
-                  'date-parts'
-                ][0][0]
-              : '2024';
-          const doi = item.DOI ? `,\n  doi = {${item.DOI}}` : '';
+  const bibtexEntries = cslToBibtex(bibliography ?? []);
 
-          return `@article{${key},
-  title = {${title}},
-  author = {${authorStr}},
-  year = {${year}}${doi}
-}`;
-        } catch {
-          return '';
-        }
-      })
-      .filter(Boolean)
-      .join('\n\n') ?? '';
-
-  // 2. Render LaTeX benchmark tables from comparisonMatrix
   const latexTables =
     comparisonMatrix && comparisonMatrix.length > 0
       ? comparisonMatrix
@@ -132,7 +59,6 @@ export default function OverleafButton() {
           .join('\n\n')
       : '';
 
-  // 3. Assemble full publication-grade LaTeX manuscript
   const formattedTitle =
     paperTitle && paperTitle.length > 0
       ? paperTitle[0].replace(/^#+\s*/, '').trim()
