@@ -28,7 +28,7 @@ const ASSETS: Asset[] = [
   {
     id: 'comparisonMatrix',
     name: 'Comparison matrix',
-    type: 'text',
+    type: 'json',
   },
   {
     id: 'paper',

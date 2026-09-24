@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import OverleafButton from '@/components/AssetsSidebar/AssetsItem/OverleafButton/OverleafButton';
 import SubAssetsItem from '@/components/AssetsSidebar/AssetsItem/SubAssetsItem/SubAssetsItem';
 import BibliographyAsset from '@/components/AssetsSidebar/BibliographyAsset/BibliographyAsset';
+import ComparisonMatrixAsset from '@/components/AssetsSidebar/ComparisonMatrixAsset/ComparisonMatrixAsset';
 import ExpandableItem from '@/components/AssetsSidebar/ExpandableItem/ExpandableItem';
 import IdeationAsset from '@/components/AssetsSidebar/IdeationAsset/IdeationAsset';
 import ResearchQuestionsAsset from '@/components/AssetsSidebar/ResearchQuestionsAsset/ResearchQuestionsAsset';
@@ -66,6 +67,12 @@ export default function AssetsItem({ asset }: Props) {
   if (_asset?.id === 'researchQuestions') {
     return (
       <ResearchQuestionsAsset enableInput={asset.isInputAsset} key={asset.id} />
+    );
+  }
+
+  if (_asset?.id === 'comparisonMatrix') {
+    return (
+      <ComparisonMatrixAsset enableInput={asset.isInputAsset} key={asset.id} />
     );
   }
 

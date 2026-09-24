@@ -33,6 +33,10 @@ import useIndexedDbStore from '@/components/useIndexedDbStore/useIndexedDbStore'
 import useIndexedDbStores from '@/components/useIndexedDbStores/useIndexedDbStores';
 import { AssetId } from '@/config/assets';
 import ASSISTANTS from '@/config/assistants';
+import {
+  formatMatrixForChat,
+  parseMarkdownTableToMatrix,
+} from '@/lib/comparisonMatrixUtils';
 import getAssetById from '@/lib/getAssetById';
 import { formatIdeaForChat, parseIdeaItem } from '@/lib/ideationUtils';
 import {
@@ -172,6 +176,16 @@ export default function Llm({
           formatQuestionForChat(parseResearchQuestionItem(item, index + 1))
         )
         .join('\n');
+      return `${asset ? asset.name : assetId}:\n${formatted}`;
+    }
+    if (assetId === 'comparisonMatrix') {
+      const formatted = content
+        .map((item, index) =>
+          formatMatrixForChat(
+            parseMarkdownTableToMatrix(item, `Comparative Matrix ${index + 1}`)
+          )
+        )
+        .join('\n\n---\n\n');
       return `${asset ? asset.name : assetId}:\n${formatted}`;
     }
     return `${asset ? asset.name : assetId}: ${content.join(', ')}`;
