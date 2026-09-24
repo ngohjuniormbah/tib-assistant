@@ -1,0 +1,105 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Installation" />
+
+# Installation
+
+This installation guide helps you to setup the AIssistant web application, Pocketbase (used for user management and data storage), and Keycloak (used for authentication) on your local machine.
+
+There are two ways to run the TIB AIssistant web app: for development using Node.js or inside Docker for testing only. Running the web application as a Node application is recommended when you want to develop the AIssistant. Running the web application inside Docker is recommended when you just want to run the AIssistant locally, without doing any development.
+
+_Both setups require Docker to be installed on your machine._
+
+## Prerequisites
+
+1. Clone this repository:
+
+```bash
+git clone git@gitlab.com:TIBHannover/orkg/tib-aissistant/web-app.git
+```
+
+2. Go to the directory:
+
+```bash
+cd web-app
+```
+
+3. Copy the file `default.env.local` to `.env.local`:
+
+```bash
+cp default.env.local .env.local
+```
+
+4. Change the environment variables in the `.env.local` file to your needs. For the application to function, you need an [OpenAI API key](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key). Also set an OpenAI organization key if you API key is associated with an organization:
+
+```bash
+OPENAI_API_KEY=your_api_key
+OPENAI_ORGANIZATION=your_organization_key (optional)
+```
+
+You also need to set your email in order to use the Unpaywall tool:
+
+```bash
+NEXT_PUBLIC_UNPAYWALL_EMAIL=your_email
+```
+
+## Option 1: Node development server
+
+Running the TIB AIssistant web app as a Node application is recommended when you want to develop the AIssistant. This setup allows you to make changes to the code and see them reflected immediately.
+
+5.1. Ensure you are using the Node and npm versions specified in `.mise.toml`. Install [mise](https://mise.jdx.dev/getting-started.html) and run `mise install` in the project directory. Once mise is activated in your shell, versions switch automatically when you `cd` into the project.
+
+5.2. Install the dependencies:
+
+```bash
+npm install
+```
+
+5.3. Run the development server:
+
+```bash
+npm run dev
+```
+
+5.4. Append the following line to your `/etc/hosts` file (Linux/macOS) or `C:\Windows\System32\drivers\etc\hosts` file (Windows):
+
+```bash
+127.0.0.1 pocketbase.localhost
+```
+
+5.5. Start Pocketbase and Keycloak using Docker Compose:
+
+```bash
+docker compose up -d pocketbase keycloak keycloak-postgres
+```
+
+See the information below for the services that are running on your machine.
+
+## Option 2: Docker
+
+As previously mentioned, running the TIB AIssistant web app inside Docker is recommended when you just want to run the AIssistant locally, without doing any development.
+
+5.1. Start all containers
+
+```bash
+docker-compose up -d
+```
+
+See the information below for the services that are running on your machine.
+
+## Accessing the services
+
+After following the steps listed above, the following services are running on your machine:
+
+- Web app: [http://localhost:3000](http://localhost:3000)
+  - User credentials:
+    - Username: `user@example.org`
+    - Password: `Pa$$w0rd`
+- Pocketbase: [http://localhost:8090/\_/](http://localhost:8090/_/)
+  - Admin credentials:
+    - Username: `admin@example.org`
+    - Password: `Pa$$w0rd`
+- Keycloak: [http://localhost:8080](http://localhost:8080)
+  - Admin credentials:
+    - Username: `admin`
+    - Password: `admin`

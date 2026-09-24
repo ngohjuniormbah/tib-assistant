@@ -1,0 +1,18 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Main concepts/Assistants/Custom TypeScript assistant" />
+
+# Custom TypeScript assistant
+
+All assistants now use the unified `Assistant` configuration format. There is no need to create separate page components or API routes per assistant — the dynamic route at `src/app/(layoutWithSidebar)/assistants/[assistantId]/` handles all assistants automatically.
+
+To create a new assistant, follow the instructions in the [Assistants documentation](../?path=/docs/main-concepts-assistants-assistants--docs).
+
+## Advanced customization
+
+If you need behavior beyond what the `Assistant` config provides, you can modify the following files:
+
+- **`src/app/(layoutWithSidebar)/assistants/[assistantId]/AssistantPage.tsx`** — The component that renders every assistant page. It reads the assistant config and sets up the `Llm` and `AssetsSidebar` components.
+- **`src/app/(layoutWithSidebar)/assistants/[assistantId]/api/route.ts`** — The API route that handles LLM streaming for all assistants. It reads the assistant config, resolves MCP tools, and streams the response.
+
+Since the TIB AIssistant uses the [AI SDK](https://sdk.vercel.ai/docs/introduction), refer to their documentation for more advanced patterns like custom tool handling or multi-step workflows.

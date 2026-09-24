@@ -1,0 +1,162 @@
+import { Meta, Source } from '@storybook/addon-docs/blocks';
+import dedent from 'ts-dedent';
+import ASSISTANTS from '../config/assistants';
+
+<Meta title="Main concepts/Assistants/Assistants" />
+
+# Assistants
+
+The TIB AIssistant consists of a set of multiple smaller assistants. (Sometimes assistants can be referred to as _agents_, but since a single assistant could consist of multiple agents, we use the term _assistant_.) Assistants are displayed in the left sidebar of the application.
+
+## Creating an assistant
+
+As a first step, create a new file in `./src/config/assistants`. Choose a file name that uses camelCase and ends with `.ts`, e.g., `myNewAssistant.ts`. The file should contain a default export of type `Assistant`. The object key used when registering the assistant (see below) becomes the assistant's `id`.
+
+<Source
+  language='typescript'
+  dark
+  format={false}
+  type="dynamic"
+  code={dedent`
+// ./src/config/assistants/myNewAssistant.ts
+import { Assistant } from '@/types';
+
+const ASSISTANT: Assistant = {
+  metadata: {
+    name: 'My New Assistant',
+    description: 'A brief description of what this assistant does.',
+    lifeCyclePhase: 'Ideation',
+    domain: 'Generic',
+    creator: 'TIB AIssistant team',
+  },
+  userInterface: {
+    infoBox: 'This assistant helps you to...',
+    readMoreText: 'More detailed explanation here.',
+  },
+  agent: {
+    tools: {
+      [process.env.NEXT_PUBLIC_MCP_SERVER_URL!]: [
+        'crossref',
+        'orcid',
+      ],
+    },
+    inputAssets: ['researchQuestions'],
+    outputAssets: ['ideationTopics'],
+    model: 'gpt-5-mini',
+    systemPrompt: 'You are a research assistant. Help the user to...',
+    initialSystemMessage: 'Welcome! Provide a topic and I can help you explore it.',
+  },
+};
+
+export default ASSISTANT;
+  `}
+/>
+
+The `Assistant` type has the following properties:
+
+| Path                          | Description                                                                                               | Data Type                        |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `metadata.name`               | Display name of the assistant.                                                                            | `string`                         |
+| `metadata.description`        | Brief description of the assistant. (optional)                                                            | `string`                         |
+| `metadata.lifeCyclePhase`     | Which life cycle phase this assistant belongs to. (optional)                                              | `string`                         |
+| `metadata.domain`             | Domain category, e.g., 'Generic'. (optional)                                                             | `string`                         |
+| `metadata.creator`            | Creator or team name. (optional)                                                                          | `string`                         |
+| `userInterface.infoBox`       | Text displayed in a blue box under the assistant name.                                                    | `string`                         |
+| `userInterface.readMoreText`  | Additional explanatory text. (optional)                                                                   | `string`                         |
+| `agent.tools`                 | Map of MCP server URLs to arrays of tool names enabled by default. (optional)                             | `Record<string, string[]>`       |
+| `agent.inputAssets`           | Asset IDs that the assistant receives as input. (optional)                                                | `string[]`                       |
+| `agent.outputAssets`          | Asset IDs that the assistant produces as output. (optional)                                               | `string[]`                       |
+| `agent.model`                 | The model used for the assistant (default `gpt-5-mini`). (optional)                                      | `string`                         |
+| `agent.systemPrompt`          | The system prompt supplied to the LLM. (optional)                                                        | `string`                         |
+| `agent.initialSystemMessage`  | First message displayed to the user when they open the assistant. (optional)                              | `string`                         |
+
+### Registering the assistant
+
+After creating the assistant file, import it and add it to the `ASSISTANTS` object in `./src/config/assistants.ts`. The object key becomes the assistant's `id` via the `withIds()` helper.
+
+<Source
+  language='typescript'
+  dark
+  format={false}
+  type="dynamic"
+  code={dedent`
+// ./src/config/assistants.ts
+import myNewAssistant from '@/config/assistants/myNewAssistant';
+// ...other imports
+
+const ASSISTANTS = withIds({
+  // ...existing assistants
+  myNewAssistant,
+});
+
+export default ASSISTANTS;
+  `}
+/>
+
+### Adding the assistant to a life cycle
+
+Assistants are grouped and ordered in the sidebar via life cycles, defined in `./src/config/lifeCycles.ts`. A life cycle contains an `assistants` array which can include plain assistant IDs (strings) or grouped assistants (objects with a `groupName` and nested `assistants` array).
+
+<Source
+  language='typescript'
+  dark
+  format={false}
+  type="dynamic"
+  code={dedent`
+// ./src/config/lifeCycles.ts
+const LIFE_CYCLES: LifeCycles = {
+  default: {
+    metadata: {
+      name: 'Default pipeline',
+      description: 'A generic pipeline for demonstration purposes.',
+      domain: 'Generic',
+      creator: 'TIB AIssistant team',
+    },
+    assistants: [
+      'ideation',
+      'researchQuestions',
+      'relatedLiterature',
+      {
+        groupName: 'Paper writing',
+        assistants: [
+          'paperTitle',
+          'paperAbstract',
+          'paperIntroduction',
+          'paperRelatedWork',
+          'paperConclusion',
+        ],
+      },
+      'review',
+      'myNewAssistant', // add your assistant here
+    ],
+  },
+};
+  `}
+/>
+
+### Advanced customization
+
+All assistants use the same configuration-based approach and are rendered by the dynamic route at `src/app/(layoutWithSidebar)/assistants/[assistantId]/`. If you need more advanced customization beyond what the `Assistant` config provides, you can modify `AssistantPage.tsx` or the API route at `[assistantId]/api/route.ts`.
+
+## List of assistants
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Life Cycle Phase</th>
+      <th>Domain</th>
+    </tr>
+  </thead>
+  <tbody>
+    {Object.entries(ASSISTANTS).map(([id, assistant]) => (
+      <tr key={id}>
+        <td>{id}</td>
+        <td>{assistant.metadata.name}</td>
+        <td>{assistant.metadata.lifeCyclePhase}</td>
+        <td>{assistant.metadata.domain}</td>
+      </tr>
+    ))}
+  </tbody>
+</table>

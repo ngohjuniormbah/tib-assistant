@@ -1,0 +1,120 @@
+import { Meta, Source } from '@storybook/addon-docs/blocks';
+import dedent from 'ts-dedent';
+
+<Meta title="Main concepts/Tools" />
+
+# Tools
+
+Tools can be used by assistants to perform specific tasks. They are external APIs hosted on MCP (Model Context Protocol) servers that can be called by the assistant. The assistant decides when to call a tool via the [tool calling mechanism](https://sdk.vercel.ai/docs/ai-sdk-core/tools-and-tool-calling). When a tool is invoked, an API request is made to the respective MCP server, and the response can be used in a variety of ways. Tool calls require user confirmation before execution.
+
+## Architecture
+
+Tools are not defined inline in the application. Instead, they live on external MCP servers. The application maintains:
+
+1. **MCP server configuration** (`./src/config/mcpServers.ts`) — which MCP servers are available.
+2. **Tool gallery** (`./src/config/toolGallery.ts`) — metadata about the tools on each server (for display in the UI).
+3. **Assistant tool references** (`./src/config/assistants/*.ts`) — which tools are enabled by default for each assistant.
+
+## Registering MCP servers
+
+MCP servers are registered in `./src/config/mcpServers.ts`. Each server has a URL and a protocol (`http` or `sse`).
+
+<Source
+  language='typescript'
+  dark
+  format={false}
+  type="dynamic"
+  code={dedent`
+// ./src/config/mcpServers.ts
+import { McpServer } from '@/config/mcpServers';
+
+const MCP_SERVERS: McpServer[] = [
+  {
+    url: process.env.NEXT_PUBLIC_MCP_SERVER_URL!,
+    protocol: 'http',
+  },
+  {
+    url: 'https://mcp.ask.orkg.org/sse',
+    protocol: 'sse',
+  },
+];
+
+export default MCP_SERVERS;
+  `}
+/>
+
+| Path       | Description                                            | Data Type        |
+| ---------- | ------------------------------------------------------ | ---------------- |
+| `url`      | The URL of the MCP server.                             | `string`         |
+| `protocol` | The protocol used to communicate with the MCP server.  | `'http' \| 'sse'`|
+
+## Adding a tool to the gallery
+
+To make a tool available in the tool library UI, add an entry to the `TOOL_GALLERY` in `./src/config/toolGallery.ts`. Tools are grouped by their MCP server URL.
+
+<Source
+  language='typescript'
+  dark
+  format={false}
+  type="dynamic"
+  code={dedent`
+// ./src/config/toolGallery.ts
+const TOOL_GALLERY: ToolGallery = {
+  [process.env.NEXT_PUBLIC_MCP_SERVER_URL!]: [
+    {
+      mcpToolName: 'crossref',
+      name: 'Crossref',
+      domain: 'Generic',
+      creator: 'TIB AIssistant team',
+      description: 'Fetches metadata for a given DOI.',
+      gdpr: {
+        country: 'USA',
+        domain: 'crossref.org',
+      },
+    },
+    // ...more tools
+  ],
+};
+
+export default TOOL_GALLERY;
+  `}
+/>
+
+The `ToolGalleryItem` type has the following properties:
+
+| Path          | Description                                                  | Data Type                              |
+| ------------- | ------------------------------------------------------------ | -------------------------------------- |
+| `mcpToolName` | The tool name as defined on the MCP server.                  | `string`                               |
+| `name`        | Display name in the tool library UI.                         | `string`                               |
+| `domain`      | Domain category, e.g., 'Generic'. (optional)                 | `string`                               |
+| `creator`     | Creator or team name. (optional)                             | `string`                               |
+| `description` | Description shown to users.                                  | `string`                               |
+| `gdpr`        | GDPR-related information: country and domain. (optional)     | `{ country?: string, domain?: string }`|
+
+## Enabling tools in an assistant
+
+To enable a tool by default for an assistant, add its MCP tool name to the `agent.tools` map in the assistant's configuration file, keyed by the MCP server URL. Users can also manually enable or disable tools from the tool library in the UI.
+
+<Source
+  language='typescript'
+  dark
+  format={false}
+  type="dynamic"
+  code={dedent`
+// ./src/config/assistants/myAssistant.ts
+const ASSISTANT: Assistant = {
+  // ...other config
+  agent: {
+    tools: {
+      [process.env.NEXT_PUBLIC_MCP_SERVER_URL!]: [
+        'crossref',
+        'semantic_scholar_search_papers_by_keywords',
+      ],
+    },
+    // ...other agent config
+  },
+};
+  `}
+/>
+
+For more information about configuring assistants, see the [Assistants documentation](../?path=/docs/main-concepts-assistants-assistants--docs).
