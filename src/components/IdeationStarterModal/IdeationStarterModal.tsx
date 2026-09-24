@@ -5,6 +5,7 @@ import {
   faFingerprint,
   faLightbulb,
   faMagnifyingGlass,
+  faPaperPlane,
   faSearch,
   faShieldHalved,
   faTable,
@@ -52,6 +53,7 @@ export default function IdeationStarterModal({
   // ORKG Graph Search state
   const [orkgProblemQuery, setOrkgProblemQuery] = useState('');
   const [isSearchingOrkg, setIsSearchingOrkg] = useState(false);
+  const [hasSearchedOrkg, setHasSearchedOrkg] = useState(false);
   const [orkgProblems, setOrkgProblems] = useState<OrkgProblemSummary[]>([]);
   const [selectedOrkgProblem, setSelectedOrkgProblem] =
     useState<OrkgProblemSummary | null>(null);
@@ -93,6 +95,7 @@ export default function IdeationStarterModal({
     e.preventDefault();
     if (!orkgProblemQuery.trim()) return;
     setIsSearchingOrkg(true);
+    setHasSearchedOrkg(true);
     setOrkgProblems([]);
     setSelectedOrkgProblem(null);
 
@@ -113,7 +116,7 @@ export default function IdeationStarterModal({
     const propertiesText =
       gapReport && gapReport.evaluatedProperties.length > 0
         ? `Observed benchmark properties in ORKG: ${gapReport.evaluatedProperties.join(', ')}.`
-        : 'Pioneer area with few structured comparisons in ORKG.';
+        : 'Pioneer research area in ORKG.';
 
     onSelectStarter(
       `I want to formulate new research directions for the ORKG research problem "${problem.label}" (ID: ${problem.id}). ${propertiesText} Formulate 3 publication-grade, falsifiable research hypotheses with target benchmark datasets that break past current limitations.`
@@ -142,7 +145,7 @@ export default function IdeationStarterModal({
       .join('\n');
 
     onSelectStarter(
-      `I want to refine this hypothesis for publication: "${auditHypothesis}". Prior-art collision audit scored novelty at ${auditResult.noveltyScore}% (${auditResult.verdict.replace('_', ' ')}). Potentially overlapping literature:\n${collisionList || 'None detected.'}\n\nPlease perform an adversarial critique (Reviewer 2 stress-test) and suggest 3 high-novelty pivots to maximize distinctiveness.`
+      `I want to formulate publication-grade directions for this hypothesis: "${auditHypothesis}". Prior-art collision audit scored novelty at ${auditResult.noveltyScore}% (${auditResult.verdict.replace('_', ' ')}). Potentially overlapping literature:\n${collisionList || 'None detected.'}\n\nPlease perform an adversarial critique (Reviewer 2 stress-test) and formulate 3 publication-ready, falsifiable directions addressing these points.`
     );
   };
 
@@ -212,10 +215,10 @@ export default function IdeationStarterModal({
                 >
                   <TextField className="flex-1 flex flex-col gap-1.5">
                     <Label className="text-sm font-semibold text-foreground">
-                      Search Research Problem in ORKG
+                      Search Research Problem or Benchmark in ORKG
                     </Label>
                     <Input
-                      placeholder="e.g. Question Answering, Protein Folding, Semantic Parsing"
+                      placeholder="e.g. Entity Linking, Question Answering, Knowledge Graph"
                       value={orkgProblemQuery}
                       onChange={(e) => setOrkgProblemQuery(e.target.value)}
                       required
@@ -235,12 +238,28 @@ export default function IdeationStarterModal({
                   </Button>
                 </form>
 
+                {hasSearchedOrkg &&
+                  !isSearchingOrkg &&
+                  orkgProblems.length === 0 && (
+                    <Alert>
+                      <Alert.Indicator />
+                      <Alert.Content>
+                        <Alert.Description>
+                          No structured ORKG problem matched &quot;
+                          {orkgProblemQuery}&quot;. You can use the{' '}
+                          <strong>Topic Frontier</strong> tab to search across
+                          Semantic Scholar directly.
+                        </Alert.Description>
+                      </Alert.Content>
+                    </Alert>
+                  )}
+
                 {orkgProblems.length > 0 && (
                   <div className="space-y-2">
                     <span className="text-xs font-semibold text-muted">
-                      Select an ORKG Problem Graph to Mine Benchmark Gaps:
+                      Select an ORKG Problem or Benchmark Table:
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
                       {orkgProblems.map((problem) => (
                         <div
                           key={problem.id}
@@ -253,9 +272,14 @@ export default function IdeationStarterModal({
                             <span className="font-semibold text-sm truncate text-foreground">
                               {problem.label}
                             </span>
-                            <span className="text-xs text-muted font-mono">
-                              ID: {problem.id}
-                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <Chip size="sm">
+                                {problem.type.toUpperCase()}
+                              </Chip>
+                              <span className="text-xs text-muted font-mono">
+                                {problem.id}
+                              </span>
+                            </div>
                           </div>
                           <Button
                             size="sm"
@@ -265,7 +289,10 @@ export default function IdeationStarterModal({
                               selectedOrkgProblem?.id === problem.id
                             }
                           >
-                            Mine Gaps
+                            <FontAwesomeIcon
+                              icon={faPaperPlane}
+                              className="text-xs"
+                            />
                           </Button>
                         </div>
                       ))}
@@ -286,14 +313,14 @@ export default function IdeationStarterModal({
                     </Label>
                     <TextArea
                       rows={2}
-                      placeholder="e.g. Integrating neuro-symbolic knowledge graphs with diffusion decoders reduces hallucinations in biomedical relation extraction."
+                      placeholder="e.g. Using diffusion probabilistic decoders with knowledge graph embeddings for relation extraction."
                       value={auditHypothesis}
                       onChange={(e) => setAuditHypothesis(e.target.value)}
                       required
                     />
                     <Description className="text-xs text-muted">
-                      Checks against recent publications in Semantic Scholar and
-                      ORKG to detect overlapping prior art.
+                      Audits literature across Semantic Scholar and ORKG to
+                      detect prior art collisions.
                     </Description>
                   </div>
 
@@ -302,7 +329,7 @@ export default function IdeationStarterModal({
                       Key Domain Keywords (Comma Separated)
                     </Label>
                     <Input
-                      placeholder="e.g. neuro-symbolic, hallucination, biomedical relation"
+                      placeholder="e.g. diffusion, knowledge graph, relation extraction"
                       value={auditKeywords}
                       onChange={(e) => setAuditKeywords(e.target.value)}
                     />
@@ -340,8 +367,10 @@ export default function IdeationStarterModal({
                         size="sm"
                         variant="primary"
                         onPress={handleAdoptAuditToChat}
+                        className="gap-2"
                       >
-                        Refine & Defend in Chat
+                        <FontAwesomeIcon icon={faPaperPlane} />
+                        <span>Generate Directions in Chat</span>
                       </Button>
                     </div>
 
@@ -368,8 +397,10 @@ export default function IdeationStarterModal({
                         <Alert.Indicator />
                         <Alert.Content>
                           <Alert.Description>
-                            No direct conceptual collisions found in recent top
-                            venues. High novelty clearance.
+                            High novelty clearance: No direct conceptual
+                            collisions found in recent top venues. Click{' '}
+                            <strong>Generate Directions in Chat</strong> to
+                            produce the formal hypothesis formulation.
                           </Alert.Description>
                         </Alert.Content>
                       </Alert>

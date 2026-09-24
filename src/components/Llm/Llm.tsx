@@ -588,7 +588,10 @@ export default function Llm({
           isOpen={ideationStarterModalState.isOpen}
           onOpenChange={ideationStarterModalState.setOpen}
           onSelectStarter={(prompt) => {
-            setInput(prompt);
+            sendMessage({
+              role: 'user',
+              parts: [{ type: 'text', text: prompt }],
+            });
             ideationStarterModalState.close();
           }}
         />

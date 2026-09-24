@@ -9,7 +9,9 @@ const ORKG_SPARQL_ENDPOINT = 'https://orkg.org/triplestore/sparql';
 export type OrkgProblemSummary = {
   id: string;
   label: string;
+  type: 'problem' | 'comparison';
   comparisonCount: number;
+  description?: string;
 };
 
 export type OrkgGapReport = {
@@ -32,28 +34,98 @@ export type PriorArtCollisionCheck = {
   verdict: 'high_novelty' | 'moderate_overlap' | 'collision_detected';
 };
 
+type OrkgResourceItem = {
+  id: string;
+  label?: string;
+  classes?: string[];
+};
+
+type OrkgComparisonItem = {
+  id: string;
+  title?: string;
+  label?: string;
+  description?: string;
+};
+
+type OrkgPageResponse<T> = {
+  content?: T[];
+};
+
 /**
- * Search ORKG research problems by keyword
+ * Search ORKG research problems and benchmark comparisons using official endpoints
  */
 export async function searchOrkgProblems(
   query: string
 ): Promise<OrkgProblemSummary[]> {
-  try {
-    const response = await ky
-      .get(
-        `https://orkg.org/api/problems?q=${encodeURIComponent(query.trim())}&size=6`,
-        {
-          timeout: 10000,
-        }
-      )
-      .json<{ content?: Array<{ id: string; label: string }> }>();
+  const cleanQuery = query.trim();
+  if (!cleanQuery) return [];
 
-    const problems = response?.content ?? [];
-    return problems.map((problem) => ({
-      id: problem.id,
-      label: problem.label,
-      comparisonCount: 1,
-    }));
+  const q = encodeURIComponent(cleanQuery);
+  const results: OrkgProblemSummary[] = [];
+
+  try {
+    const [problemRes, compRes] = await Promise.allSettled([
+      // 1. Search resources with class Problem
+      ky
+        .get(`https://orkg.org/api/resources?q=${q}&include=Problem&size=6`, {
+          timeout: 10000,
+        })
+        .json<OrkgPageResponse<OrkgResourceItem> | OrkgResourceItem[]>(),
+      // 2. Search comparative benchmark tables
+      ky
+        .get(`https://orkg.org/api/comparisons?q=${q}&size=4`, {
+          timeout: 10000,
+        })
+        .json<OrkgPageResponse<OrkgComparisonItem> | OrkgComparisonItem[]>(),
+    ]);
+
+    if (problemRes.status === 'fulfilled' && problemRes.value) {
+      const val = problemRes.value;
+      const items = Array.isArray(val) ? val : val.content || [];
+      items.forEach((item) => {
+        results.push({
+          id: item.id,
+          label: item.label || item.id,
+          type: 'problem',
+          comparisonCount: 1,
+        });
+      });
+    }
+
+    if (compRes.status === 'fulfilled' && compRes.value) {
+      const val = compRes.value;
+      const comps = Array.isArray(val) ? val : val.content || [];
+      comps.forEach((comp) => {
+        results.push({
+          id: comp.id,
+          label: comp.title || comp.label || `Comparison ${comp.id}`,
+          type: 'comparison',
+          comparisonCount: 1,
+          description: comp.description || undefined,
+        });
+      });
+    }
+
+    // Fallback: If include=Problem was too strict, search general resources matching label
+    if (results.length === 0) {
+      const generalRes = await ky
+        .get(`https://orkg.org/api/resources?q=${q}&size=6`, { timeout: 10000 })
+        .json<OrkgPageResponse<OrkgResourceItem> | OrkgResourceItem[]>();
+
+      const items = Array.isArray(generalRes)
+        ? generalRes
+        : generalRes.content || [];
+      items.forEach((item) => {
+        results.push({
+          id: item.id,
+          label: item.label || item.id,
+          type: 'problem',
+          comparisonCount: 1,
+        });
+      });
+    }
+
+    return results;
   } catch (error) {
     console.error('Error searching ORKG problems:', error);
     return [];
@@ -72,12 +144,15 @@ PREFIX orkgr: <http://orkg.org/orkg/resource/>
 PREFIX orkgp: <http://orkg.org/orkg/predicate/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
-SELECT DISTINCT ?comparison ?comparisonTitle ?propLabel ?valLabel
+SELECT DISTINCT ?contrib ?propLabel ?valLabel
 WHERE {
-  ?comparison orkgp:P32 orkgr:${cleanId} .
-  OPTIONAL { ?comparison rdfs:label ?comparisonTitle }
-  OPTIONAL {
-    ?comparison ?hasContrib ?contrib .
+  {
+    ?contrib orkgp:P32 orkgr:${cleanId} .
+    ?contrib ?prop ?val .
+    ?prop rdfs:label ?propLabel .
+    OPTIONAL { ?val rdfs:label ?valLabel }
+  } UNION {
+    orkgr:${cleanId} ?hasContrib ?contrib .
     ?contrib ?prop ?val .
     ?prop rdfs:label ?propLabel .
     OPTIONAL { ?val rdfs:label ?valLabel }
@@ -100,12 +175,8 @@ WHERE {
 
     const bindings = sparqlResponse?.results?.bindings ?? [];
     const propertySet = new Set<string>();
-    const comparisonSet = new Set<string>();
 
     for (const binding of bindings) {
-      if (binding.comparison?.value) {
-        comparisonSet.add(binding.comparison.value);
-      }
       if (binding.propLabel?.value) {
         propertySet.add(binding.propLabel.value.trim());
       }
@@ -116,18 +187,18 @@ WHERE {
 
     if (properties.length > 0) {
       gaps.push(
-        `Identified ${properties.length} active benchmark properties across ${comparisonSet.size} comparisons.`
+        `Identified ${properties.length} evaluation properties active in ORKG graphs.`
       );
     } else {
       gaps.push(
-        'Limited structured comparison tables detected in ORKG; high potential for pioneer benchmark.'
+        'Pioneer problem area in ORKG. High opportunity to define new evaluation benchmarks.'
       );
     }
 
     return {
       problemId,
       problemLabel: cleanId,
-      comparisonsFound: comparisonSet.size,
+      comparisonsFound: bindings.length > 0 ? 1 : 0,
       evaluatedProperties: properties.slice(0, 15),
       observedBaselines: [],
       openGapInsights: gaps,
@@ -148,7 +219,7 @@ export async function checkPriorArtCollision(
   const searchQuery = keywords.slice(0, 4).join(' ');
   const recentPapers = await searchPapers({
     query: searchQuery || hypothesis.slice(0, 80),
-    limit: 5,
+    limit: 6,
   });
 
   const collisions: PriorArtCollisionCheck['potentialCollisions'] = [];
@@ -161,17 +232,17 @@ export async function checkPriorArtCollision(
       (token) => token.length > 3 && hypothesisTokens.includes(token)
     );
 
-    if (commonTokens.length >= 3) {
+    if (commonTokens.length >= 2) {
       collisions.push({
         title: paper.title,
         url: paper.url,
         doi: paper.doi,
-        similarityHint: `Overlapping conceptual tokens: ${commonTokens.join(', ')}`,
+        similarityHint: `Shared conceptual keywords: ${commonTokens.join(', ')}`,
       });
     }
   }
 
-  const noveltyScore = Math.max(15, 100 - collisions.length * 28);
+  const noveltyScore = Math.max(20, 100 - collisions.length * 25);
   const verdict: PriorArtCollisionCheck['verdict'] =
     collisions.length >= 2
       ? 'collision_detected'
