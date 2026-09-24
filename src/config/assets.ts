@@ -31,6 +31,11 @@ const ASSETS: Asset[] = [
     type: 'json',
   },
   {
+    id: 'reviewReport',
+    name: 'Peer review report',
+    type: 'text',
+  },
+  {
     id: 'paper',
     name: 'Paper',
     type: 'object',

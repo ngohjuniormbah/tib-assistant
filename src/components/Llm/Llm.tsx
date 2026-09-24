@@ -1,8 +1,10 @@
 import {
+  faCheck,
   faInfoCircle,
   faLightbulb,
   faRotateLeft,
   faSearch,
+  faShieldHalved,
   faTable,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -461,6 +463,49 @@ export default function Llm({
               >
                 <FontAwesomeIcon icon={faLightbulb} />
                 <span className="hidden sm:inline">Research Starters</span>
+              </Button>
+            </div>
+          )}
+
+          {assistantId === 'review' && (
+            <div className="flex gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => {
+                  sendMessage({
+                    role: 'user',
+                    parts: [
+                      {
+                        type: 'text',
+                        text: 'Conduct an adversarial Reviewer 2 stress-test on this manuscript draft. Highlight the 3 most dangerous empirical or theoretical vulnerabilities, missing baselines, or reasons to reject at a top-tier conference. Provide constructive rebuttal strategies for each point.',
+                      },
+                    ],
+                  });
+                }}
+                className="gap-2"
+              >
+                <FontAwesomeIcon icon={faShieldHalved} />
+                <span className="hidden sm:inline">Reviewer 2 Stress-Test</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                onPress={() => {
+                  sendMessage({
+                    role: 'user',
+                    parts: [
+                      {
+                        type: 'text',
+                        text: 'Conduct an exhaustive conference peer review of this paper following the official conference rubric (Meta-Review Scorecard 1-10, Strengths, Reviewer 2 Vulnerabilities, Questions for Rebuttal, and Actionable Revision Roadmap).',
+                      },
+                    ],
+                  });
+                }}
+                className="gap-2"
+              >
+                <FontAwesomeIcon icon={faCheck} />
+                <span className="hidden sm:inline">Run Full Peer Review</span>
               </Button>
             </div>
           )}
