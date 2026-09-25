@@ -33,25 +33,14 @@ export type ImportComparisonModalProps = {
   onImport: (results: OrkgComparisonResult[]) => void;
 };
 
-const ORKG_URL_ID_REGEX = /orkg\.org\/(?:[a-z0-9_-]+\/)+([A-Za-z0-9_-]+)/gi;
-const ORKG_ID_REGEX = /^(R|C|P|CONTRIBUTION)[_\d][A-Za-z0-9_-]*$/i;
-
+/**
+ * Matches any R-number, C-number, or P-number anywhere in the text
+ */
 function extractAllOrkgIds(input: string): string[] {
-  const ids: string[] = [];
-  const urlMatches = input.matchAll(ORKG_URL_ID_REGEX);
-  for (const m of urlMatches) {
-    if (m[1] && !ids.includes(m[1])) {
-      ids.push(m[1]);
-    }
-  }
-  const tokens = input.split(/[\s,;]+/);
-  for (const token of tokens) {
-    const trimmed = token.trim();
-    if (ORKG_ID_REGEX.test(trimmed) && !ids.includes(trimmed)) {
-      ids.push(trimmed);
-    }
-  }
-  return ids;
+  const matches = input.match(/[RCP]\d+/gi) || [];
+  const set = new Set<string>();
+  matches.forEach((m) => set.add(m.toUpperCase()));
+  return Array.from(set);
 }
 
 function ComparisonTablePreview({ result }: { result: OrkgComparisonResult }) {
@@ -130,7 +119,7 @@ export default function ImportComparisonModal({
     const ids = extractAllOrkgIds(comparisonInput);
     if (!ids.length) {
       setError(
-        'No valid ORKG comparison links or identifiers found. Please check your input.'
+        'No valid ORKG comparison ID found (e.g. R1702050 or R1587225). Please check your input.'
       );
       setIsLoading(false);
       return;
@@ -140,7 +129,7 @@ export default function ImportComparisonModal({
       const results = await fetchMultipleOrkgComparisons(ids);
       if (!results.length) {
         setError(
-          'Could not retrieve any comparison tables from the provided links. Please verify the IDs.'
+          `Could not resolve comparison for ${ids.join(', ')}. Please verify the comparison exists on ORKG.`
         );
       } else {
         setComparisonResults((prev) => {
@@ -150,7 +139,7 @@ export default function ImportComparisonModal({
         });
         setComparisonInput('');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
       setError('Failed to query ORKG. Please check your internet connection.');
     } finally {
@@ -189,16 +178,15 @@ export default function ImportComparisonModal({
 
           <Modal.Body className="space-y-4">
             <p className="text-sm text-muted">
-              Paste one or multiple ORKG comparison URLs or IDs (one per line or
-              separated by commas):
+              Paste one or multiple ORKG comparison URLs or IDs (e.g.{' '}
+              <code>https://orkg.org/comparison/R1702050</code> or simply{' '}
+              <code>R1702050</code>):
             </p>
 
             <div className="space-y-2">
               <TextArea
                 rows={3}
-                placeholder={
-                  'https://orkg.org/comparisons/R1587225\nhttps://orkg.org/comparisons/R1587217\nR1587219'
-                }
+                placeholder={'https://orkg.org/comparison/R1702050\nR1587225'}
                 value={comparisonInput}
                 onChange={(e) => setComparisonInput(e.target.value)}
                 disabled={isLoading}
@@ -257,10 +245,8 @@ export default function ImportComparisonModal({
                           <h4 className="text-sm font-bold m-0 line-clamp-1">
                             {res.title}
                           </h4>
-                          <Chip size="sm" color="accent">
-                            {res.contributionCount} studies
-                          </Chip>
-                          <Chip size="sm" color="default">
+                          <Chip size="sm">{res.contributionCount} studies</Chip>
+                          <Chip size="sm">
                             {res.propertyColumns.length} properties
                           </Chip>
                         </div>
@@ -287,10 +273,7 @@ export default function ImportComparisonModal({
                             aria-label="Remove comparison"
                             onPress={() => handleRemoveComparison(res.id)}
                           >
-                            <FontAwesomeIcon
-                              icon={faTrash}
-                              className="text-danger"
-                            />
+                            <FontAwesomeIcon icon={faTrash} />
                           </Button>
                         </div>
                       </div>
