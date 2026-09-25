@@ -588,6 +588,28 @@ export default function Llm({
         </div>
       </ScrollShadow>
 
+      {assistantId === 'researchQuestions' && messages.length <= 1 && (
+        <div className="px-4 py-1 flex gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="text-xs py-1 px-3"
+            onPress={() => {
+              sendMessage({
+                role: 'user',
+                parts: [
+                  {
+                    type: 'text',
+                    text: 'Formulate a complete battery of empirical research questions (RQ1-RQ4) addressing efficacy, ablation, robustness, and efficiency for this hypothesis.',
+                  },
+                ],
+              });
+            }}
+          >
+            ⚡ Generate RQ1–RQ4 from Hypothesis
+          </Button>
+        </div>
+      )}
       <TextareaLlm
         input={input}
         setInput={setInput}
