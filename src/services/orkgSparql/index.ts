@@ -4,6 +4,7 @@ import ky from 'ky';
 
 import { generateText } from '@/lib/llm';
 import { openai } from '@/lib/openAi';
+import { searchItems } from '@/services/orkgAsk';
 
 export type OrkgNlQueryResult = {
   naturalLanguageResponse: string;
@@ -11,137 +12,96 @@ export type OrkgNlQueryResult = {
   resultCount: number;
 };
 
-type OrkgResource = {
-  id: string;
-  label?: string;
-  classes?: string[];
-};
-
-type OrkgComparison = {
-  id: string;
-  title?: string;
-  label?: string;
-  description?: string;
-};
-
-type OrkgPageResponse<T> = {
-  content?: T[];
-};
-
-function extractKeywords(query: string): string {
-  const stopwords = new Set([
-    'find',
-    'search',
-    'show',
-    'what',
-    'are',
-    'the',
-    'in',
-    'of',
-    'on',
-    'for',
-    'with',
-    'about',
-    'which',
-    'give',
-    'me',
-    'list',
-    'tell',
-    'papers',
-    'studies',
-    'comparisons',
-  ]);
-  const tokens = query
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !stopwords.has(w));
-  return tokens.join(' ') || query;
-}
-
 export async function queryOrkgWithNl(
   query: string
 ): Promise<OrkgNlQueryResult> {
-  const searchTerms = extractKeywords(query);
-  const q = encodeURIComponent(searchTerms.trim());
-
-  let resources: OrkgResource[] = [];
-  let comparisons: OrkgComparison[] = [];
-
-  try {
-    const [resResult, compResult] = await Promise.allSettled([
-      ky
-        .get(`https://orkg.org/api/resources?q=${q}&size=8`, { timeout: 12000 })
-        .json<OrkgPageResponse<OrkgResource> | OrkgResource[]>(),
-      ky
-        .get(`https://orkg.org/api/comparisons?q=${q}&size=5`, {
-          timeout: 12000,
-        })
-        .json<OrkgPageResponse<OrkgComparison> | OrkgComparison[]>(),
-    ]);
-
-    if (resResult.status === 'fulfilled' && resResult.value) {
-      const val = resResult.value;
-      resources = Array.isArray(val) ? val : val.content || [];
-    }
-    if (compResult.status === 'fulfilled' && compResult.value) {
-      const val = compResult.value;
-      comparisons = Array.isArray(val) ? val : val.content || [];
-    }
-  } catch (err) {
-    console.warn('ORKG Search error:', err);
-  }
-
+  const cleanQuery = query.trim();
   const allEntries: string[] = [];
 
-  if (Array.isArray(comparisons) && comparisons.length > 0) {
-    allEntries.push('### ORKG Comparison Tables:');
-    comparisons.forEach((c, i) => {
-      allEntries.push(
-        `${i + 1}. **[${c.title || c.label || 'Comparison'}](https://orkg.org/comparison/${c.id})** (ID: \`${c.id}\`)`
-      );
-      if (c.description) allEntries.push(`   *Summary:* ${c.description}`);
+  try {
+    // 1. Query ORKG Ask semantic vector index
+    const askResults = await searchItems({
+      query: cleanQuery,
+      limit: 6,
+      offset: 0,
     });
-  }
+    const items = askResults?.items || [];
 
-  if (Array.isArray(resources) && resources.length > 0) {
-    allEntries.push('### ORKG Resources & Papers:');
-    resources.forEach((r, i) => {
-      const classes = (r.classes || []).join(', ');
-      allEntries.push(
-        `${i + 1}. [${r.label || 'Resource'}](https://orkg.org/resource/${r.id}) (ID: \`${r.id}\`${classes ? ` | Type: ${classes}` : ''})`
-      );
-    });
+    if (items.length > 0) {
+      allEntries.push('### ORKG Papers & Items:');
+      items.forEach((item, i) => {
+        const year = item.date_published
+          ? new Date(item.date_published).getFullYear()
+          : '';
+        const authorStr = item.authors?.slice(0, 2).join(', ') || '';
+        allEntries.push(
+          `${i + 1}. **[${item.title}](https://ask.orkg.org/item/${item.id})** ${year ? `(${year})` : ''}${authorStr ? ` — ${authorStr}` : ''}`
+        );
+        if (item.abstract) {
+          allEntries.push(`   *Summary:* ${item.abstract.slice(0, 180)}…`);
+        }
+      });
+    }
+
+    // 2. Query ORKG Resources API for problem / comparison entities
+    const resourceRes = await ky
+      .get(
+        `https://orkg.org/api/resources?q=${encodeURIComponent(cleanQuery)}&size=6`,
+        { timeout: 10000 }
+      )
+      .json<
+        | { content?: Array<{ id: string; label: string; classes?: string[] }> }
+        | Array<{ id: string; label: string; classes?: string[] }>
+      >();
+
+    const resources = Array.isArray(resourceRes)
+      ? resourceRes
+      : resourceRes?.content || [];
+    const validResources = resources.filter(
+      (r) => r.label && r.label.toLowerCase() !== cleanQuery.toLowerCase()
+    );
+
+    if (validResources.length > 0) {
+      allEntries.push('\n### ORKG Knowledge Graph Entities:');
+      validResources.slice(0, 5).forEach((r, i) => {
+        const typeStr = r.classes?.join(', ') || 'Entity';
+        allEntries.push(
+          `${i + 1}. [${r.label}](https://orkg.org/resource/${r.id}) (ID: \`${r.id}\` | Type: ${typeStr})`
+        );
+      });
+    }
+  } catch (err) {
+    console.warn('Notice from ORKG search query:', err);
   }
 
   if (allEntries.length > 0) {
-    const contextPrompt = `User question: "${query}"\n\nRelevant ORKG search results:\n${allEntries.join('\n')}\n\nSynthesize a scholarly, structured academic response directly answering the user query based on the ORKG items found. Provide direct markdown links to the ORKG resources and comparisons. Highlight existing comparison tables that the user can import.`;
-
     try {
+      const contextPrompt = `User question: "${cleanQuery}"\n\nScholarly items from ORKG:\n${allEntries.join('\n')}\n\nSynthesize an authoritative, structured academic response directly answering the user query. Reference the papers and link to the ORKG resources.`;
+
       const aiResponse = await generateText({
         model: openai('gpt-4o-mini'),
         system:
-          'You are an expert scientific researcher at TIB summarizing the Open Research Knowledge Graph (ORKG). Present clear, rigorous academic summaries without decorative emojis.',
+          'You are an elite scientific researcher at the Leibniz Information Centre for Science and Technology (TIB) synthesizing the Open Research Knowledge Graph (ORKG). Provide concise, technical academic responses with markdown links.',
         prompt: contextPrompt,
       });
 
       return {
-        naturalLanguageResponse: aiResponse?.text ?? allEntries.join('\n'),
-        sparqlQuery: `# ORKG Keyword Search for "${searchTerms}"`,
+        naturalLanguageResponse: aiResponse?.text || allEntries.join('\n'),
+        sparqlQuery: `# ORKG Query for "${cleanQuery}"`,
         resultCount: allEntries.length,
       };
     } catch {
       return {
         naturalLanguageResponse: allEntries.join('\n'),
-        sparqlQuery: `# ORKG Keyword Search for "${searchTerms}"`,
+        sparqlQuery: `# ORKG Query for "${cleanQuery}"`,
         resultCount: allEntries.length,
       };
     }
   }
 
   return {
-    naturalLanguageResponse: `No direct entries found in ORKG for "${query}". Try searching by specific scientific terminology, model names, or benchmark datasets.`,
-    sparqlQuery: `# Search executed for "${searchTerms}"`,
+    naturalLanguageResponse: `No direct entries found in ORKG for "${cleanQuery}". Try related scientific terms, model names, or benchmark datasets.`,
+    sparqlQuery: `# Query executed for "${cleanQuery}"`,
     resultCount: 0,
   };
 }

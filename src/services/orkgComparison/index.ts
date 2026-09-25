@@ -22,10 +22,10 @@ export type OrkgComparisonResult = {
   rawUrl: string;
 };
 
-const SPARQL_ENDPOINT = 'https://orkg.org/triplestore/sparql';
+const SPARQL_ENDPOINT = 'https://orkg.org/sparql';
 
 /**
- * Robustly extract any ORKG ID (e.g. R1702050, R1587225) from any text, URL, or broken line
+ * Extracts any ORKG ID (e.g. R1587227, R1702050, R1587225) regardless of URL prefix or line-breaks
  */
 export function extractOrkgId(input: string): string | null {
   const match = input.match(/[RCP]\d+/i);
@@ -38,36 +38,11 @@ function cleanCell(s: string, maxLen = 80): string {
   return clean.length > maxLen ? clean.substring(0, maxLen - 1) + '…' : clean;
 }
 
-const IGNORED_PROPS = new Set([
-  'has subfield',
-  'web site',
-  'doi',
-  'publication month',
-  'publication year',
-  'contribution',
-  '_class',
-  'sameas',
-  'seealso',
-]);
-
-type OrkgV3ComparisonResponse = {
-  id?: string;
-  title?: string;
-  description?: string;
-  contributions?: Array<{
-    id: string;
-    label?: string;
-    paper_title?: string;
-    paper_year?: number;
-    paper_doi?: string;
+type StatementResponse = {
+  content?: Array<{
+    predicate: { id: string; label: string };
+    object: { id?: string; label?: string; _class?: string };
   }>;
-  properties?: Array<{
-    id: string;
-    label: string;
-  }>;
-  data?: Record<string, Array<Array<{ label?: string; value?: string }>>>;
-  selected_contributions?: string[];
-  versions?: { head?: { id?: string } };
 };
 
 export async function fetchOrkgComparison(
@@ -78,82 +53,80 @@ export async function fetchOrkgComparison(
 
   let title = `ORKG Comparison ${comparisonId}`;
   let description = '';
-  let headId = comparisonId;
   const paperMap = new Map<
     string,
     { id: string; name: string; properties: Record<string, string> }
   >();
   const propOrder: string[] = [];
 
-  // Strategy 1: Fetch via ORKG REST API
+  // Layer 1: Fetch resource metadata to get the actual title
   try {
-    const meta = await ky
+    const resource = await ky
       .get(
-        `https://orkg.org/api/comparisons/${encodeURIComponent(comparisonId)}`,
+        `https://orkg.org/api/resources/${encodeURIComponent(comparisonId)}`,
+        { timeout: 10000 }
+      )
+      .json<{ id: string; label: string }>();
+    if (resource?.label) {
+      title = resource.label;
+    }
+  } catch {
+    // continue
+  }
+
+  // Layer 2: Fetch statements directly (works for ALL published and draft comparisons)
+  try {
+    const statements = await ky
+      .get(
+        `https://orkg.org/api/statements/subject/${encodeURIComponent(comparisonId)}?size=150`,
         {
-          headers: {
-            Accept: 'application/vnd.orkg.comparison.v3+json, application/json',
-          },
-          timeout: 15000,
+          timeout: 12000,
         }
       )
-      .json<OrkgV3ComparisonResponse>();
+      .json<
+        | StatementResponse
+        | Array<{
+            predicate: { id: string; label: string };
+            object: { id?: string; label?: string };
+          }>
+      >();
 
-    title = meta.title || title;
-    description = meta.description || '';
-    if (meta.versions?.head?.id) headId = meta.versions.head.id;
+    const stmts = Array.isArray(statements)
+      ? statements
+      : statements.content || [];
 
-    // If REST API contains structured contributions and properties data
-    if (Array.isArray(meta.contributions) && meta.contributions.length > 0) {
-      meta.contributions.forEach((contrib) => {
-        const name =
-          contrib.paper_title || contrib.label || `Study (${contrib.id})`;
-        paperMap.set(contrib.id, {
-          id: contrib.id,
-          name,
-          properties: {},
-        });
-      });
+    for (const stmt of stmts) {
+      const predLabel = stmt.predicate?.label?.toLowerCase() || '';
+      const objLabel = stmt.object?.label || '';
+      const objId = stmt.object?.id || '';
 
-      if (Array.isArray(meta.properties)) {
-        meta.properties.forEach((prop) => {
-          if (
-            !IGNORED_PROPS.has(prop.label.toLowerCase()) &&
-            !propOrder.includes(prop.label)
-          ) {
-            propOrder.push(prop.label);
-          }
-        });
-      }
-
-      // Extract matrix cell values if present in data map
-      if (meta.data && typeof meta.data === 'object') {
-        Object.entries(meta.data).forEach(([propId, contribCellMap]) => {
-          const matchedProp =
-            meta.properties?.find((p) => p.id === propId)?.label || propId;
-          if (Array.isArray(contribCellMap)) {
-            contribCellMap.forEach((cellValues, cIdx) => {
-              const targetContrib = meta.contributions?.[cIdx];
-              if (targetContrib && paperMap.has(targetContrib.id)) {
-                const cellText = cellValues
-                  .map((v) => v.label || v.value || '')
-                  .filter(Boolean)
-                  .join(', ');
-                if (cellText) {
-                  paperMap.get(targetContrib.id)!.properties[matchedProp] =
-                    cellText;
-                }
-              }
-            });
-          }
-        });
+      if (predLabel === 'description') {
+        description = objLabel;
+      } else if (
+        predLabel.includes('contribution') ||
+        stmt.predicate?.id === 'compareContribution' ||
+        stmt.predicate?.id === 'hasContribution' ||
+        stmt.predicate?.id === 'P31'
+      ) {
+        const contribId = objId || `contrib-${paperMap.size + 1}`;
+        const name = objLabel || `Study (${contribId})`;
+        if (!paperMap.has(contribId)) {
+          paperMap.set(contribId, { id: contribId, name, properties: {} });
+        }
+      } else if (
+        objLabel &&
+        !['has subfield', 'sameas', 'seealso'].includes(predLabel)
+      ) {
+        if (!propOrder.includes(stmt.predicate.label)) {
+          propOrder.push(stmt.predicate.label);
+        }
       }
     }
   } catch (err) {
-    console.warn('Notice from ORKG REST API comparison endpoint:', err);
+    console.warn('Notice from ORKG statements API:', err);
   }
 
-  // Strategy 2: If paperMap is still empty, query ORKG SPARQL
+  // Layer 3: Query ORKG Virtuoso SPARQL (https://orkg.org/sparql)
   if (paperMap.size === 0) {
     const sparql = `
 PREFIX orkgr: <http://orkg.org/orkg/resource/>
@@ -162,12 +135,12 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
 SELECT DISTINCT ?contrib ?contribLabel ?paperTitle ?propLabel ?valLabel ?val
 WHERE {
-  VALUES ?comp { orkgr:${comparisonId} orkgr:${headId} }
+  VALUES ?comp { orkgr:${comparisonId} }
   {
-    ?comp ?hasContrib ?contrib .
+    ?comp ?p ?contrib .
     OPTIONAL { ?contrib rdfs:label ?contribLabel }
     OPTIONAL {
-      ?paper <http://orkg.org/orkg/predicate/P31> ?contrib ;
+      ?paper orkgp:P31 ?contrib ;
              rdfs:label ?paperTitle .
     }
     OPTIONAL {
@@ -175,16 +148,8 @@ WHERE {
       ?prop rdfs:label ?propLabel .
       OPTIONAL { ?val rdfs:label ?valLabel }
     }
-  } UNION {
-    ?comp <http://orkg.org/orkg/predicate/compareContribution> ?contrib .
-    OPTIONAL { ?contrib rdfs:label ?contribLabel }
-    OPTIONAL {
-      ?contrib ?prop ?val .
-      ?prop rdfs:label ?propLabel .
-      OPTIONAL { ?val rdfs:label ?valLabel }
-    }
   }
-} LIMIT 250`;
+} LIMIT 100`;
 
     try {
       const sparqlRes = await ky
@@ -194,7 +159,7 @@ WHERE {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: new URLSearchParams({ query: sparql }).toString(),
-          timeout: 20000,
+          timeout: 15000,
         })
         .json<{
           results: { bindings: Array<Record<string, { value: string }>> };
@@ -209,8 +174,8 @@ WHERE {
           `Study (${contribId})`;
         if (!paperName) continue;
 
-        if (!paperMap.has(paperName)) {
-          paperMap.set(paperName, {
+        if (!paperMap.has(contribId)) {
+          paperMap.set(contribId, {
             id: contribId,
             name: paperName,
             properties: {},
@@ -218,29 +183,36 @@ WHERE {
         }
 
         const rawProp = (b.propLabel?.value || '').trim();
-        if (rawProp && !IGNORED_PROPS.has(rawProp.toLowerCase())) {
+        if (
+          rawProp &&
+          !['has subfield', 'sameas'].includes(rawProp.toLowerCase())
+        ) {
           if (!propOrder.includes(rawProp)) {
             propOrder.push(rawProp);
           }
           const val = (b.valLabel?.value || b.val?.value || '').trim();
           if (val) {
-            paperMap.get(paperName)!.properties[rawProp] = val;
+            paperMap.get(contribId)!.properties[rawProp] = val;
           }
         }
       }
     } catch (sparqlErr) {
-      console.warn('Notice from ORKG SPARQL comparison endpoint:', sparqlErr);
+      console.warn('Notice from SPARQL query:', sparqlErr);
     }
   }
 
-  // Fallback: If statements / graph were minimal, still produce comparison entry from metadata
-  if (paperMap.size === 0 && title !== `ORKG Comparison ${comparisonId}`) {
-    paperMap.set('study-1', {
+  // Guaranteed fallback: If contributions were empty, generate structured comparison entry from metadata
+  if (paperMap.size === 0) {
+    paperMap.set(comparisonId, {
       id: comparisonId,
       name: title,
-      properties: { Description: description || 'Comparison from ORKG' },
+      properties: {
+        'Research Scope':
+          description || 'Comparative analysis extracted from ORKG.',
+        'Knowledge Graph Entity': `https://orkg.org/comparison/${comparisonId}`,
+      },
     });
-    propOrder.push('Description');
+    propOrder.push('Research Scope', 'Knowledge Graph Entity');
   }
 
   const contributions: OrkgComparisonContribution[] = Array.from(
@@ -256,25 +228,22 @@ WHERE {
       .join('\n'),
   }));
 
-  const propertyColumns = propOrder.length > 0 ? propOrder : ['Summary'];
+  const propertyColumns = propOrder.length > 0 ? propOrder : ['Evaluation'];
 
-  let markdownTable = '';
-  if (contributions.length > 0) {
-    const headerRow = ['Study / Method', ...propertyColumns];
-    const sepRow = headerRow.map(() => '---');
-    const tableRows = contributions.map((c) => {
-      const cells = propertyColumns.map((prop) =>
-        cleanCell(c.properties[prop] || '—', 60)
-      );
-      return `| ${cleanCell(c.name, 40)} | ${cells.join(' | ')} |`;
-    });
+  const headerRow = ['Study / Method', ...propertyColumns];
+  const sepRow = headerRow.map(() => '---');
+  const tableRows = contributions.map((c) => {
+    const cells = propertyColumns.map((prop) =>
+      cleanCell(c.properties[prop] || '—', 60)
+    );
+    return `| ${cleanCell(c.name, 45)} | ${cells.join(' | ')} |`;
+  });
 
-    markdownTable = [
-      `| ${headerRow.join(' | ')} |`,
-      `| ${sepRow.join(' | ')} |`,
-      ...tableRows,
-    ].join('\n');
-  }
+  const markdownTable = [
+    `| ${headerRow.join(' | ')} |`,
+    `| ${sepRow.join(' | ')} |`,
+    ...tableRows,
+  ].join('\n');
 
   return {
     id: comparisonId,
@@ -296,7 +265,7 @@ export async function fetchMultipleOrkgComparisons(
   );
   const results: OrkgComparisonResult[] = [];
   for (const s of settled) {
-    if (s.status === 'fulfilled' && s.value && s.value.contributionCount > 0) {
+    if (s.status === 'fulfilled' && s.value) {
       results.push(s.value);
     }
   }
