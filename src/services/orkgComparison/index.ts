@@ -27,7 +27,7 @@ const SPARQL_ENDPOINT = 'https://orkg.org/sparql';
 /**
  * Extracts any ORKG ID (e.g. R1587227, R1702050, R1587225) regardless of URL prefix or line-breaks
  */
-export function extractOrkgId(input: string): string | null {
+function extractOrkgId(input: string): string | null {
   const match = input.match(/[RCP]\d+/i);
   return match ? match[0].toUpperCase() : null;
 }
