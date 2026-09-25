@@ -616,9 +616,7 @@ export default function Llm({
         isLoading={isLoading}
         defaultEnabledTools={defaultEnabledTools}
         assistantId={assistantId}
-        isDisabled={
-          hasMissingAssets || isDisabled || isAwaitingToolCallConfirmation
-        }
+        isDisabled={isDisabled || isAwaitingToolCallConfirmation}
         sendMessage={sendMessage}
       />
 

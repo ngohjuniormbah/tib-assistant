@@ -24,7 +24,7 @@ const ASSISTANT: Assistant = {
       ],
       'https://mcp.ask.orkg.org/sse': ['semanticIndex'],
     },
-    inputAssets: ['researchQuestions', 'comparisonMatrix'],
+    inputAssets: ['researchQuestions'],
     outputAssets: ['bibliography', 'comparisonMatrix'],
     model: 'gpt-5-mini',
     systemPrompt: `You are an elite scientific meta-analysis assistant and systematic review specialist at the Leibniz Information Centre for Science and Technology (TIB). Your objective is to discover, structure, and synthesize scholarly literature relevant to the researcher's questions.
