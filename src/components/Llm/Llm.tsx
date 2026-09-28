@@ -610,6 +610,215 @@ export default function Llm({
           </Button>
         </div>
       )}
+      {!isLoading && (
+        <div className="px-4 py-1.5 flex gap-2 flex-wrap items-center">
+          {assistantId === 'relatedLiterature' && (
+            <>
+              <Button
+                size="sm"
+                variant="primary"
+                className="text-xs py-1 px-3.5 gap-1.5 font-medium"
+                onPress={() => {
+                  sendMessage({
+                    role: 'user',
+                    parts: [
+                      {
+                        type: 'text',
+                        text: 'Search recent empirical literature addressing these research questions. Construct a comprehensive benchmark comparison table comparing existing baselines, datasets, performance metrics, and limitations.',
+                      },
+                    ],
+                  });
+                }}
+              >
+                ⚡ Search Literature & Build Benchmark Matrix
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="text-xs py-1 px-3.5 gap-1.5"
+                onPress={importComparisonModalState.open}
+              >
+                <FontAwesomeIcon
+                  icon={faTable}
+                  className="text-xs text-muted"
+                />
+                <span>Import ORKG Comparison</span>
+              </Button>
+            </>
+          )}
+
+          {assistantId === 'researchQuestions' && (
+            <Button
+              size="sm"
+              variant="primary"
+              className="text-xs py-1 px-3.5 gap-1.5 font-medium"
+              onPress={() => {
+                sendMessage({
+                  role: 'user',
+                  parts: [
+                    {
+                      type: 'text',
+                      text: 'Formulate a complete battery of empirical research questions (RQ1-RQ4) addressing efficacy, ablation, robustness, and efficiency for this hypothesis.',
+                    },
+                  ],
+                });
+              }}
+            >
+              ⚡ Generate RQ1–RQ4 from Hypothesis
+            </Button>
+          )}
+
+          {assistantId === 'paperTitle' && (
+            <Button
+              size="sm"
+              variant="primary"
+              className="text-xs py-1 px-3.5 gap-1.5 font-medium"
+              onPress={() => {
+                sendMessage({
+                  role: 'user',
+                  parts: [
+                    {
+                      type: 'text',
+                      text: 'Synthesize 5 candidate paper titles across conference styles (Declarative, Colon/Compound, Theoretical, Empirical, Inquisitive) for this research.',
+                    },
+                  ],
+                });
+              }}
+            >
+              ⚡ Generate 5 Conference Title Styles
+            </Button>
+          )}
+
+          {assistantId === 'paperAbstract' && (
+            <Button
+              size="sm"
+              variant="primary"
+              className="text-xs py-1 px-3.5 gap-1.5 font-medium"
+              onPress={() => {
+                sendMessage({
+                  role: 'user',
+                  parts: [
+                    {
+                      type: 'text',
+                      text: 'Draft a publication-grade, 5-part academic abstract (Context, Gap, Proposed Method, Benchmark Findings, and Significance).',
+                    },
+                  ],
+                });
+              }}
+            >
+              ⚡ Draft 5-Part Academic Abstract
+            </Button>
+          )}
+
+          {assistantId === 'paperIntroduction' && (
+            <Button
+              size="sm"
+              variant="primary"
+              className="text-xs py-1 px-3.5 gap-1.5 font-medium"
+              onPress={() => {
+                sendMessage({
+                  role: 'user',
+                  parts: [
+                    {
+                      type: 'text',
+                      text: 'Draft a conference-grade Introduction section with background, prior limitations, core hypothesis, and contribution bullet points.',
+                    },
+                  ],
+                });
+              }}
+            >
+              ⚡ Draft Introduction Section
+            </Button>
+          )}
+
+          {assistantId === 'paperRelatedWork' && (
+            <Button
+              size="sm"
+              variant="primary"
+              className="text-xs py-1 px-3.5 gap-1.5 font-medium"
+              onPress={() => {
+                sendMessage({
+                  role: 'user',
+                  parts: [
+                    {
+                      type: 'text',
+                      text: 'Synthesize an exhaustive thematic Related Work section organizing the bibliography and benchmark matrix into subsections with LaTeX cite keys.',
+                    },
+                  ],
+                });
+              }}
+            >
+              ⚡ Draft Related Work Section
+            </Button>
+          )}
+
+          {assistantId === 'paperConclusion' && (
+            <Button
+              size="sm"
+              variant="primary"
+              className="text-xs py-1 px-3.5 gap-1.5 font-medium"
+              onPress={() => {
+                sendMessage({
+                  role: 'user',
+                  parts: [
+                    {
+                      type: 'text',
+                      text: 'Draft a comprehensive Conclusion section summarizing empirical results, threats to validity/Reviewer 2 limitations, and future work.',
+                    },
+                  ],
+                });
+              }}
+            >
+              ⚡ Draft Conclusion Section
+            </Button>
+          )}
+
+          {assistantId === 'review' && (
+            <>
+              <Button
+                size="sm"
+                variant="primary"
+                className="text-xs py-1 px-3.5 gap-1.5 font-medium"
+                onPress={() => {
+                  sendMessage({
+                    role: 'user',
+                    parts: [
+                      {
+                        type: 'text',
+                        text: 'Conduct an exhaustive conference peer review of this paper following the official conference rubric (Meta-Review Scorecard 1-10, Strengths, Reviewer 2 Vulnerabilities, and Revision Roadmap).',
+                      },
+                    ],
+                  });
+                }}
+              >
+                ⚡ Run Full Peer Review (Scorecard 1–10)
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="text-xs py-1 px-3.5 gap-1.5"
+                onPress={() => {
+                  sendMessage({
+                    role: 'user',
+                    parts: [
+                      {
+                        type: 'text',
+                        text: 'Conduct an adversarial Reviewer 2 stress-test on this manuscript. Expose the 3 most critical empirical vulnerabilities and missing baselines with rebuttal strategies.',
+                      },
+                    ],
+                  });
+                }}
+              >
+                <FontAwesomeIcon
+                  icon={faShieldHalved}
+                  className="text-xs text-muted"
+                />
+                <span>Reviewer 2 Stress-Test</span>
+              </Button>
+            </>
+          )}
+        </div>
+      )}
       <TextareaLlm
         input={input}
         setInput={setInput}
