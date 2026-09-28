@@ -120,8 +120,11 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
         });
       } else if (id.startsWith('doi-') || id.startsWith('doi:')) {
         const cleanDoi = id.replace(/^doi[-:]/, '');
+        const paperData = await getPaperById(`DOI:${cleanDoi}`);
         bib = createBibliographyItemFromCitation(id, {
-          title: `Paper DOI: ${cleanDoi}`,
+          title: paperData?.title || `Paper DOI: ${cleanDoi}`,
+          authors: paperData?.authors?.map((a) => a.name) || undefined,
+          year: paperData?.year?.toString() || undefined,
           doi: cleanDoi,
         });
       } else {
@@ -194,6 +197,80 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
     window.dispatchEvent(new CustomEvent('insert-prompt', { detail: prompt }));
   };
 
+  /**
+   * Helper that renders text with interactive [+ Add to Bib] citation buttons wherever tags appear
+   */
+  const renderCitationsInText = (children: ReactNode): ReactNode => {
+    const text = extractTextFromChildren(children);
+    const regex =
+      /(?:\[((?:orkg-ask|orkgAsk|semantic-scholar|semanticScholar|semantic_scholar|doi|DOI))[-:]([A-Za-z0-9._/-]+)\]|((?:orkg-ask|orkgAsk|semantic-scholar|semanticScholar|semantic_scholar))[-:]([A-Za-z0-9._/-]+))/g;
+
+    if (!regex.test(text)) {
+      return children;
+    }
+
+    regex.lastIndex = 0;
+    const nodes: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(text)) !== null) {
+      const [
+        full,
+        bracketedPrefix,
+        bracketedIdPart,
+        nonBracketedPrefix,
+        nonBracketedIdPart,
+      ] = match;
+      const start = match.index;
+      if (start > lastIndex) {
+        nodes.push(text.slice(lastIndex, start));
+      }
+
+      const prefix = bracketedPrefix || nonBracketedPrefix;
+      const idPart = bracketedIdPart || nonBracketedIdPart;
+
+      const canonicalId = normalizeCitationId(`${prefix}-${idPart}`);
+      const isInBibliography = isItemInBibliography(
+        bibliography ?? [],
+        canonicalId
+      );
+
+      nodes.push(
+        <span
+          key={`${canonicalId}-${start}`}
+          className="inline-flex items-center gap-1 mx-1 my-0.5 align-middle"
+        >
+          <Button
+            size="sm"
+            variant={isInBibliography ? 'secondary' : 'primary'}
+            className="h-5 px-2 text-[10px] gap-1 font-semibold rounded-md shadow-xs"
+            onPress={() => handleToggleCitation(canonicalId)}
+            aria-label={
+              isInBibliography
+                ? `Remove citation ${canonicalId} from bibliography`
+                : `Add citation ${canonicalId} to bibliography`
+            }
+          >
+            <FontAwesomeIcon
+              icon={isInBibliography ? faCheck : faPlus}
+              size="xs"
+            />
+            <span>{isInBibliography ? 'In Bib' : 'Add to Bib'}</span>
+          </Button>
+          <span className="font-mono text-xs bg-surface-secondary px-1.5 py-0.5 rounded border border-border">
+            {full}
+          </span>
+        </span>
+      );
+      lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < text.length) {
+      nodes.push(text.slice(lastIndex));
+    }
+    return nodes;
+  };
+
   return (
     <div className="my-2 relative w-full leading-relaxed [&_.regular-list]:list-disc [&_.regular-list]:pl-5 [&_ol.regular-list]:list-decimal space-y-3">
       <ReactMarkdown
@@ -226,7 +303,7 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
           ),
           td: ({ children }) => (
             <td className="p-2.5 border-r border-border text-xs text-muted align-top last:border-r-0 leading-relaxed whitespace-normal">
-              {children}
+              {renderCitationsInText(children)}
             </td>
           ),
           a: ({ href, children }) => {
@@ -257,76 +334,11 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
               </a>
             );
           },
-          p: ({ children }) => {
-            const text = extractTextFromChildren(children);
-            const regex =
-              /(?:\[((?:orkg-ask|orkgAsk|semantic-scholar|semanticScholar|semantic_scholar|doi|DOI))[-:]([A-Za-z0-9._/-]+)\]|((?:orkg-ask|orkgAsk|semantic-scholar|semanticScholar|semantic_scholar))[-:]([A-Za-z0-9._/-]+))/g;
-
-            if (!regex.test(text)) {
-              return <p className="mb-2 leading-relaxed">{children}</p>;
-            }
-
-            regex.lastIndex = 0;
-            const nodes: React.ReactNode[] = [];
-            let lastIndex = 0;
-            let match: RegExpExecArray | null;
-
-            while ((match = regex.exec(text)) !== null) {
-              const [
-                full,
-                bracketedPrefix,
-                bracketedIdPart,
-                nonBracketedPrefix,
-                nonBracketedIdPart,
-              ] = match;
-              const start = match.index;
-              if (start > lastIndex) {
-                nodes.push(text.slice(lastIndex, start));
-              }
-
-              const prefix = bracketedPrefix || nonBracketedPrefix;
-              const idPart = bracketedIdPart || nonBracketedIdPart;
-
-              const canonicalId = normalizeCitationId(`${prefix}-${idPart}`);
-              const isInBibliography = isItemInBibliography(
-                bibliography ?? [],
-                canonicalId
-              );
-
-              nodes.push(
-                <span
-                  key={`${canonicalId}-${start}`}
-                  className="inline-flex items-center gap-1 mx-1 my-0.5"
-                >
-                  <Button
-                    size="sm"
-                    variant={isInBibliography ? 'secondary' : 'primary'}
-                    className="h-6 px-2 text-[11px] gap-1"
-                    onPress={() => handleToggleCitation(canonicalId)}
-                    aria-label={
-                      isInBibliography
-                        ? `Remove citation ${canonicalId} from bibliography`
-                        : `Add citation ${canonicalId} to bibliography`
-                    }
-                  >
-                    <FontAwesomeIcon
-                      icon={isInBibliography ? faCheck : faPlus}
-                      size="xs"
-                    />
-                    <span>{isInBibliography ? 'In Bib' : 'Add to Bib'}</span>
-                  </Button>
-                  <span className="font-mono text-xs bg-surface-secondary px-1.5 py-0.5 rounded border border-border">
-                    {full}
-                  </span>
-                </span>
-              );
-              lastIndex = regex.lastIndex;
-            }
-            if (lastIndex < text.length) {
-              nodes.push(text.slice(lastIndex));
-            }
-            return <p className="mb-2 leading-relaxed">{nodes}</p>;
-          },
+          p: ({ children }) => (
+            <p className="mb-2 leading-relaxed">
+              {renderCitationsInText(children)}
+            </p>
+          ),
           ul: ({ children, ...props }) => {
             const isTaskList =
               Array.isArray(props?.node?.properties?.className) &&
@@ -343,7 +355,7 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
             return (
               <ul
                 {...props?.node?.properties}
-                className="regular-list space-y-1 mb-2"
+                className="regular-list space-y-1.5 mb-2"
               >
                 {children}
               </ul>
@@ -352,7 +364,7 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
           ol: ({ children, ...props }) => (
             <ol
               {...props?.node?.properties}
-              className="regular-list space-y-1 mb-2"
+              className="regular-list space-y-1.5 mb-2"
             >
               {children}
             </ol>
@@ -476,7 +488,11 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
                 </li>
               );
             }
-            return <li {...props?.node?.properties}>{children}</li>;
+            return (
+              <li {...props?.node?.properties} className="mb-1 leading-relaxed">
+                {renderCitationsInText(children)}
+              </li>
+            );
           },
         }}
       >
