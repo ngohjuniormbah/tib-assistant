@@ -1,10 +1,12 @@
 import {
+  faCheck,
   faFlask,
+  faPlus,
   faTable,
   faTriangleExclamation,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Button, ToggleButton } from '@heroui/react';
+import { Button } from '@heroui/react';
 import { TextUIPart } from 'ai';
 import { Children, isValidElement, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -92,11 +94,13 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
         });
       } else if (
         id.startsWith('semantic-scholar-') ||
-        id.startsWith('semanticScholar-')
+        id.startsWith('semanticScholar-') ||
+        id.startsWith('semantic_scholar-')
       ) {
         const semanticPaperId = id
           .replace('semantic-scholar-', '')
-          .replace('semanticScholar-', '');
+          .replace('semanticScholar-', '')
+          .replace('semantic_scholar-', '');
         const paperData = await getPaperById(semanticPaperId);
 
         if (!paperData) {
@@ -113,6 +117,12 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
           abstract: paperData.abstract || undefined,
           doi: paperData.doi || undefined,
           year: paperData.year?.toString() || undefined,
+        });
+      } else if (id.startsWith('doi-') || id.startsWith('doi:')) {
+        const cleanDoi = id.replace(/^doi[-:]/, '');
+        bib = createBibliographyItemFromCitation(id, {
+          title: `Paper DOI: ${cleanDoi}`,
+          doi: cleanDoi,
         });
       } else {
         console.error('Unknown citation type for ID:', id);
@@ -189,6 +199,36 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          table: ({ children }) => (
+            <div className="my-4 overflow-x-auto border border-border rounded-xl shadow-sm bg-surface">
+              <table className="w-full text-xs text-left border-collapse table-auto">
+                {children}
+              </table>
+            </div>
+          ),
+          thead: ({ children }) => (
+            <thead className="bg-surface-secondary border-b border-border font-semibold text-foreground">
+              {children}
+            </thead>
+          ),
+          th: ({ children }) => (
+            <th className="p-3 border-r border-border font-bold text-foreground last:border-r-0 whitespace-nowrap">
+              {children}
+            </th>
+          ),
+          tbody: ({ children }) => (
+            <tbody className="divide-y divide-border">{children}</tbody>
+          ),
+          tr: ({ children }) => (
+            <tr className="hover:bg-surface-secondary/40 transition-colors">
+              {children}
+            </tr>
+          ),
+          td: ({ children }) => (
+            <td className="p-2.5 border-r border-border text-xs text-muted align-top last:border-r-0 leading-relaxed whitespace-normal">
+              {children}
+            </td>
+          ),
           a: ({ href, children }) => {
             const isExternal = href?.startsWith('http');
             return (
@@ -218,15 +258,19 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
             );
           },
           p: ({ children }) => {
-            if (selectedOutputAsset !== 'bibliography') {
-              return <p className="mb-2 leading-relaxed">{children}</p>;
-            }
             const text = extractTextFromChildren(children);
             const regex =
-              /(?:\[((?:orkg-ask|orkgAsk|semantic-scholar|semanticScholar))-([A-Za-z0-9_-]+)\]|((?:orkg-ask|orkgAsk|semantic-scholar|semanticScholar))-([A-Za-z0-9_-]+))/g;
+              /(?:\[((?:orkg-ask|orkgAsk|semantic-scholar|semanticScholar|semantic_scholar|doi|DOI))[-:]([A-Za-z0-9._/-]+)\]|((?:orkg-ask|orkgAsk|semantic-scholar|semanticScholar|semantic_scholar))[-:]([A-Za-z0-9._/-]+))/g;
+
+            if (!regex.test(text)) {
+              return <p className="mb-2 leading-relaxed">{children}</p>;
+            }
+
+            regex.lastIndex = 0;
             const nodes: React.ReactNode[] = [];
             let lastIndex = 0;
             let match: RegExpExecArray | null;
+
             while ((match = regex.exec(text)) !== null) {
               const [
                 full,
@@ -252,22 +296,26 @@ export default function AssistantMessage({ part, selectedOutputAsset }: Props) {
               nodes.push(
                 <span
                   key={`${canonicalId}-${start}`}
-                  className="inline-flex items-center gap-1 mx-1"
+                  className="inline-flex items-center gap-1 mx-1 my-0.5"
                 >
-                  <ToggleButton
-                    isSelected={isInBibliography}
-                    onChange={() => handleToggleCitation(canonicalId)}
+                  <Button
                     size="sm"
-                    isIconOnly
+                    variant={isInBibliography ? 'secondary' : 'primary'}
+                    className="h-6 px-2 text-[11px] gap-1"
+                    onPress={() => handleToggleCitation(canonicalId)}
                     aria-label={
                       isInBibliography
                         ? `Remove citation ${canonicalId} from bibliography`
                         : `Add citation ${canonicalId} to bibliography`
                     }
                   >
-                    {isInBibliography ? '✓' : '+'}
-                  </ToggleButton>
-                  <span className="font-mono text-xs bg-surface-tertiary px-1.5 py-0.5 rounded border border-border">
+                    <FontAwesomeIcon
+                      icon={isInBibliography ? faCheck : faPlus}
+                      size="xs"
+                    />
+                    <span>{isInBibliography ? 'In Bib' : 'Add to Bib'}</span>
+                  </Button>
+                  <span className="font-mono text-xs bg-surface-secondary px-1.5 py-0.5 rounded border border-border">
                     {full}
                   </span>
                 </span>
