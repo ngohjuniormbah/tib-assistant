@@ -1,4 +1,5 @@
-'use client';
+import { AttachedContext } from '@/components/TextareaLlm/TextareaLlm';
+('use client');
 
 import {
   faArrowUpRightFromSquare,
@@ -44,7 +45,7 @@ export type IdeationStarterModalProps = {
   onSelectStarter: (
     prompt: string,
     autoSend?: boolean,
-    attachedCtx?: any
+    attachedCtx?: AttachedContext | null
   ) => void;
 };
 
