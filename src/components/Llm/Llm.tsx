@@ -17,7 +17,7 @@ import {
 } from '@heroui/react';
 import { generateId } from 'ai';
 import dynamic from 'next/dynamic';
-import { ReactNode, useCallback, useContext, useEffect } from 'react';
+import { ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { useStickToBottom } from 'use-stick-to-bottom';
 
 import AssetsContext from '@/components/AssetsProvider/assetsContext';
@@ -78,6 +78,8 @@ export default function Llm({
   infoBox,
 }: LlmProps) {
   const { assets, setAssets } = useContext(AssetsContext);
+  const [attachedContext, setAttachedContext] =
+    useState<AttachedContext | null>(null);
   const { isCompactViewport } = useContext(sidebarsContext);
 
   const {
@@ -821,6 +823,8 @@ export default function Llm({
         </div>
       )}
       <TextareaLlm
+        attachedContext={attachedContext}
+        setAttachedContext={setAttachedContext}
         input={input}
         setInput={setInput}
         isLoading={isLoading}
@@ -862,11 +866,20 @@ export default function Llm({
         <IdeationStarterModal
           isOpen={ideationStarterModalState.isOpen}
           onOpenChange={ideationStarterModalState.setOpen}
-          onSelectStarter={(prompt) => {
-            sendMessage({
-              role: 'user',
-              parts: [{ type: 'text', text: prompt }],
-            });
+          onSelectStarter={(prompt, autoSend = true, attachedCtx = null) => {
+            if (attachedCtx) setAttachedContext(attachedCtx);
+            if (autoSend) {
+              sendMessage({
+                role: 'user',
+                parts: [{ type: 'text', text: prompt }],
+              });
+            } else {
+              setInput(prompt);
+              setTimeout(() => {
+                const textarea = document.querySelector('textarea');
+                if (textarea) textarea.focus();
+              }, 100);
+            }
             ideationStarterModalState.close();
           }}
         />

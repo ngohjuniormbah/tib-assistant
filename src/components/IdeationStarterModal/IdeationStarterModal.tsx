@@ -1,8 +1,5 @@
 'use client';
 
-import type { AttachedContext } from '@/components/TextareaLlm/TextareaLlm';
-('use client');
-
 import {
   faArrowUpRightFromSquare,
   faBookOpen,
@@ -31,6 +28,7 @@ import {
 } from '@heroui/react';
 import { FormEvent, useState } from 'react';
 
+import type { AttachedContext } from '@/components/TextareaLlm/TextareaLlm';
 import {
   getOrkgProblemGraph,
   OrkgProblem,
@@ -104,9 +102,6 @@ export default function IdeationStarterModal({
     executeOrkgSearch(orkgProblemQuery);
   };
 
-  /**
-   * Prepares the full ORKG problem graph context and either auto-sends or places into input bar
-   */
   const handleSelectProblem = async (
     problem: OrkgProblem,
     autoSend: boolean
@@ -137,13 +132,19 @@ export default function IdeationStarterModal({
       setLoadingProblemId(null);
     }
 
-    const promptText = `Analyze the research problem "${problem.label}" (ORKG ID: ${problem.id}) directly from the Open Research Knowledge Graph.\n- ${compContext}\n${
-      metricsContext ? `- ${metricsContext}\n` : ''
-    }${
-      datasetContext ? `- ${datasetContext}\n` : ''
-    }Formulate 3 publication-grade, falsifiable research hypotheses addressing the current benchmark plateaus in this problem. Present each as a selectable checkbox with Heilmeier criteria.`;
+    const shortPrompt =
+      'Formulate 3 publication-grade, falsifiable research hypotheses addressing benchmark plateaus in this problem.';
+    const attachedMeta: AttachedContext = {
+      id: problem.id,
+      title: problem.label,
+      type: 'benchmark',
+      url: `https://orkg.org/resource/${problem.id}`,
+      details: [compContext, metricsContext, datasetContext]
+        .filter(Boolean)
+        .join(' '),
+    };
 
-    onSelectStarter(promptText, autoSend);
+    onSelectStarter(shortPrompt, autoSend, attachedMeta);
   };
 
   const handleDoiSubmit = (e: FormEvent) => {
@@ -346,8 +347,8 @@ export default function IdeationStarterModal({
                         found):
                       </span>
                       <span className="text-[11px] text-muted italic">
-                        Tip: Click <strong>+ Add to Prompt</strong> to add your
-                        own instructions, or <strong>plane</strong> to generate
+                        Tip: Click <strong>+ Add to Prompt</strong> to add
+                        custom notes, or <strong>plane</strong> to generate
                         immediately.
                       </span>
                     </div>
@@ -384,7 +385,6 @@ export default function IdeationStarterModal({
                           </div>
 
                           <div className="flex items-center gap-1 shrink-0">
-                            {/* Option A: Inject into prompt bar to allow typing custom prompt */}
                             <Button
                               size="sm"
                               variant="secondary"
@@ -404,7 +404,6 @@ export default function IdeationStarterModal({
                               </span>
                             </Button>
 
-                            {/* Option B: Generate instantly */}
                             <Button
                               size="sm"
                               variant="primary"
