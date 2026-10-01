@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  faArrowUpRightFromSquare,
   faBookOpen,
   faFingerprint,
   faLightbulb,
@@ -349,19 +350,41 @@ export default function IdeationStarterModal({
                               </span>
                             </div>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            isPending={
-                              isMiningGaps &&
-                              selectedOrkgProblem?.id === problem.id
-                            }
+                          <div
+                            className="flex items-center gap-1.5 shrink-0"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <FontAwesomeIcon
-                              icon={faPaperPlane}
-                              className="text-xs"
-                            />
-                          </Button>
+                            <a
+                              href={`https://orkg.org/resource/${problem.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-link hover:underline inline-flex items-center gap-1 px-2 py-1 rounded bg-surface-secondary border border-border"
+                              title="Verify this resource directly on orkg.org"
+                            >
+                              <span>View on ORKG</span>
+                              <FontAwesomeIcon
+                                icon={faArrowUpRightFromSquare}
+                                className="text-[10px]"
+                              />
+                            </a>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              aria-label="Synthesize directions from this ORKG problem"
+                              isPending={
+                                isMiningGaps &&
+                                selectedOrkgProblem?.id === problem.id
+                              }
+                              onPress={() =>
+                                handleSelectProblemAndSynthesize(problem)
+                              }
+                            >
+                              <FontAwesomeIcon
+                                icon={faPaperPlane}
+                                className="text-xs"
+                              />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
