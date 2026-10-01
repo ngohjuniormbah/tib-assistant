@@ -10,12 +10,14 @@ type SemanticScholarResponse = {
     doi: string;
     authors: { name: string }[];
     abstract: string;
+    year?: number;
   }[];
 };
 
 export const semanticScholarApi = ky.create({
   prefixUrl: 'https://api.semanticscholar.org/graph/v1',
 });
+
 export const searchPapers = async ({
   query,
   limit = 10,
@@ -32,15 +34,17 @@ export const searchPapers = async ({
           query,
           offset,
           limit,
-          fields: 'url,abstract,authors,title',
+          fields: 'url,abstract,authors,title,year',
         },
+        timeout: 8000,
+        retry: 0,
       })
       .json();
 
     return response || [];
   } catch (error) {
     console.error('Error fetching data from Semantic Scholar API:', error);
-    return;
+    return undefined;
   }
 };
 
@@ -51,6 +55,8 @@ export const getPaperById = async (paperId: string) => {
         searchParams: {
           fields: 'url,abstract,authors,title,year',
         },
+        timeout: 8000,
+        retry: 0,
       })
       .json<{
         paperId: string;

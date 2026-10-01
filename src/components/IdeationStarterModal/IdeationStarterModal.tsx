@@ -3,7 +3,6 @@
 import {
   faArrowUpRightFromSquare,
   faBookOpen,
-  faCheck,
   faFingerprint,
   faGlobe,
   faLightbulb,
