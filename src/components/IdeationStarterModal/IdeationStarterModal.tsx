@@ -382,7 +382,7 @@ export default function IdeationStarterModal({
                               size="sm"
                               variant="secondary"
                               className="text-xs px-2 h-7 gap-1"
-                              title="Add to input bar and type your own instructions"
+                              aria-label="Add to input bar and type your own instructions"
                               isPending={loadingProblemId === problem.id}
                               onPress={() =>
                                 handleSelectProblem(problem, false)
@@ -402,7 +402,7 @@ export default function IdeationStarterModal({
                               size="sm"
                               variant="primary"
                               className="h-7 w-7 p-0 min-w-7"
-                              title="Generate ideas immediately"
+                              aria-label="Generate ideas immediately"
                               isPending={loadingProblemId === problem.id}
                               onPress={() => handleSelectProblem(problem, true)}
                             >
@@ -487,7 +487,7 @@ export default function IdeationStarterModal({
                           variant="secondary"
                           onPress={() => handleAdoptAuditToChat(false)}
                           className="text-xs"
-                          title="Put into prompt box to add custom prompt"
+                          aria-label="Put into prompt box to add custom prompt"
                         >
                           + Add to Prompt
                         </Button>
