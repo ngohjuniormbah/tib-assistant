@@ -3,7 +3,9 @@
 import {
   faArrowUpRightFromSquare,
   faBookOpen,
+  faCheck,
   faFingerprint,
+  faGlobe,
   faLightbulb,
   faMagnifyingGlass,
   faPaperPlane,
@@ -61,7 +63,7 @@ export default function IdeationStarterModal({
   onOpenChange,
   onSelectStarter,
 }: IdeationStarterModalProps) {
-  const [selectedTab, setSelectedTab] = useState<string>('orkg');
+  const [selectedTab, setSelectedTab] = useState<string>('collision');
   const [doi, setDoi] = useState('');
   const [orcid, setOrcid] = useState('');
   const [topic, setTopic] = useState('');
@@ -74,8 +76,12 @@ export default function IdeationStarterModal({
   const [loadingProblemId, setLoadingProblemId] = useState<string | null>(null);
 
   // Prior-Art Collision Audit state
-  const [auditHypothesis, setAuditHypothesis] = useState('');
-  const [auditKeywords, setAuditKeywords] = useState('');
+  const [auditHypothesis, setAuditHypothesis] = useState(
+    'Using diffusion probabilistic decoders with ontology-guided negative sampling for zero-shot scientific entity linking.'
+  );
+  const [auditKeywords, setAuditKeywords] = useState(
+    'diffusion decoders, ontology negative sampling, zero-shot entity linking'
+  );
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<PriorArtCollisionCheck | null>(
     null
@@ -174,18 +180,17 @@ export default function IdeationStarterModal({
     );
   };
 
-  const handleRunCollisionAudit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!auditHypothesis.trim()) return;
+  const runAuditWithParams = async (hyp: string, kw: string) => {
+    if (!hyp.trim()) return;
     setIsAuditing(true);
     setAuditResult(null);
 
     try {
-      const keywords = auditKeywords
+      const keywords = kw
         .split(',')
         .map((k) => k.trim())
         .filter(Boolean);
-      const result = await checkPriorArtCollision(auditHypothesis, keywords);
+      const result = await checkPriorArtCollision(hyp, keywords);
       setAuditResult(result);
     } catch (err) {
       console.error('Audit error:', err);
@@ -194,21 +199,32 @@ export default function IdeationStarterModal({
     }
   };
 
+  const handleRunCollisionAudit = (e: FormEvent) => {
+    e.preventDefault();
+    runAuditWithParams(auditHypothesis, auditKeywords);
+  };
+
   const handleAdoptAuditToChat = (autoSend: boolean) => {
     if (!auditResult) return;
     const collisionList = auditResult.potentialCollisions
-      .map((c) => `- "${c.title}" (${c.similarityHint})`)
+      .map((c) => `- [${c.source}] "${c.title}" (${c.similarityHint})`)
       .join('\n');
 
-    onSelectStarter(
-      `I want to formulate publication-grade directions for this hypothesis: "${auditHypothesis}". Prior-art collision audit scored novelty at ${auditResult.noveltyScore}% (${auditResult.verdict.replace(
-        '_',
-        ' '
-      )}). Potentially overlapping literature:\n${
-        collisionList || 'None detected.'
-      }\n\nPlease perform an adversarial critique (Reviewer 2 stress-test) and formulate 3 publication-ready, falsifiable directions addressing these points.`,
-      autoSend
-    );
+    const prompt =
+      auditResult.verdict === 'collision_detected'
+        ? `Adversarial Prior-Art Collision Detected for: "${auditHypothesis}". Closely overlapping literature found across ${auditResult.potentialCollisions.length} publications:\n${collisionList}\n\nPlease act as a senior conference reviewer and propose 3 high-novelty scientific pivots to make this research completely original.`
+        : `I want to formulate publication-grade directions for this hypothesis: "${auditHypothesis}". Prior-art collision audit confirmed novelty at ${auditResult.noveltyScore}% (${auditResult.verdict.replace(
+            '_',
+            ' '
+          )}).\n\nFormulate 3 publication-ready, falsifiable directions addressing current benchmark plateaus.`;
+
+    const attachedMeta: AttachedContext = {
+      title: auditHypothesis.slice(0, 60) + '...',
+      type: 'topic',
+      details: `Novelty: ${auditResult.noveltyScore}% (${auditResult.verdict.replace('_', ' ').toUpperCase()})`,
+    };
+
+    onSelectStarter(prompt, autoSend, attachedMeta);
   };
 
   return (
@@ -228,7 +244,8 @@ export default function IdeationStarterModal({
           <Modal.Body className="flex flex-col gap-4">
             <p className="text-sm text-muted">
               Ground hypothesis formulation in peer-reviewed literature, ORKG
-              benchmark graphs, or run real-time prior-art collision audits:
+              benchmark graphs, or run multi-platform prior-art collision
+              audits:
             </p>
 
             <Tabs
@@ -241,14 +258,14 @@ export default function IdeationStarterModal({
                   aria-label="Ideation Studio Modes"
                   className="w-full flex-wrap"
                 >
+                  <Tabs.Tab id="collision" className="gap-2">
+                    <FontAwesomeIcon icon={faShieldHalved} />
+                    <span>Prior-Art Collision Radar</span>
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
                   <Tabs.Tab id="orkg" className="gap-2">
                     <FontAwesomeIcon icon={faTable} />
                     <span>ORKG Benchmark Graph</span>
-                    <Tabs.Indicator />
-                  </Tabs.Tab>
-                  <Tabs.Tab id="collision" className="gap-2">
-                    <FontAwesomeIcon icon={faShieldHalved} />
-                    <span>Prior-Art Collision Audit</span>
                     <Tabs.Indicator />
                   </Tabs.Tab>
                   <Tabs.Tab id="doi" className="gap-2">
@@ -269,7 +286,219 @@ export default function IdeationStarterModal({
                 </Tabs.List>
               </Tabs.ListContainer>
 
-              {/* Tab 1: ORKG Graph Mining Tab */}
+              {/* Tab 1: Prior-Art Collision Audit Tab */}
+              <Tabs.Panel id="collision" className="pt-4 space-y-4">
+                {/* Multi-Platform Radar Banner */}
+                <div className="p-3 rounded-xl bg-surface-secondary/60 border border-border space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                      <FontAwesomeIcon
+                        icon={faGlobe}
+                        className="text-accent text-xs"
+                      />
+                      <span>Live Multi-Platform Radar Coverage:</span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <Chip size="sm">Semantic Scholar</Chip>
+                      <Chip size="sm">Crossref (IEEE/ACM/Nature)</Chip>
+                      <Chip size="sm">ORKG Knowledge Graph</Chip>
+                    </div>
+                  </div>
+
+                  {/* 1-Click Presentation Demo Scenarios */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-border/50 flex-wrap">
+                    <span className="text-[11px] text-muted font-medium">
+                      Demo Scenarios:
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="text-xs h-6 px-2.5"
+                      onPress={() => {
+                        const h =
+                          'Using diffusion probabilistic decoders with ontology-guided negative sampling for zero-shot scientific entity linking.';
+                        const k =
+                          'diffusion decoders, ontology negative sampling, zero-shot entity linking';
+                        setAuditHypothesis(h);
+                        setAuditKeywords(k);
+                        runAuditWithParams(h, k);
+                      }}
+                    >
+                      🚀 Test Novel Frontier (Pioneer)
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="text-xs h-6 px-2.5"
+                      onPress={() => {
+                        const h =
+                          'Dense passage retrieval with dual-encoder BERT architectures for open domain question answering.';
+                        const k =
+                          'dense passage retrieval, dual-encoder, question answering';
+                        setAuditHypothesis(h);
+                        setAuditKeywords(k);
+                        runAuditWithParams(h, k);
+                      }}
+                    >
+                      ⚠️ Test Published Idea (Scoop Test)
+                    </Button>
+                  </div>
+                </div>
+
+                <form
+                  onSubmit={handleRunCollisionAudit}
+                  className="flex flex-col gap-3"
+                >
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-sm font-semibold text-foreground">
+                      Candidate Hypothesis to Audit
+                    </Label>
+                    <TextArea
+                      rows={2}
+                      placeholder="e.g. Using diffusion probabilistic decoders with knowledge graph embeddings for relation extraction."
+                      value={auditHypothesis}
+                      onChange={(e) => setAuditHypothesis(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <TextField className="flex flex-col gap-1">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Key Domain Keywords (Comma Separated)
+                    </Label>
+                    <Input
+                      placeholder="e.g. diffusion, knowledge graph, relation extraction"
+                      value={auditKeywords}
+                      onChange={(e) => setAuditKeywords(e.target.value)}
+                    />
+                  </TextField>
+
+                  <div className="flex justify-end pt-1">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      isDisabled={isAuditing || !auditHypothesis.trim()}
+                    >
+                      {isAuditing ? (
+                        <Spinner size="sm" color="current" />
+                      ) : (
+                        <FontAwesomeIcon icon={faShieldHalved} />
+                      )}
+                      <span>Audit Across Platforms</span>
+                    </Button>
+                  </div>
+                </form>
+
+                {auditResult && (
+                  <div className="p-4 rounded-xl border border-border bg-surface-secondary/40 space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-foreground">
+                          Novelty Confidence:
+                        </span>
+                        <Chip size="sm">{auditResult.noveltyScore}%</Chip>
+                        <Chip size="sm">
+                          {auditResult.verdict.replace('_', ' ').toUpperCase()}
+                        </Chip>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onPress={() => handleAdoptAuditToChat(false)}
+                          className="text-xs"
+                          aria-label="Put into prompt box to add custom prompt"
+                        >
+                          + Add to Prompt
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onPress={() => handleAdoptAuditToChat(true)}
+                          className="gap-1.5 text-xs font-medium"
+                        >
+                          <FontAwesomeIcon
+                            icon={faPaperPlane}
+                            className="text-xs"
+                          />
+                          <span>Generate Directions</span>
+                        </Button>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted m-0">
+                      Scanned {auditResult.totalCandidatesScanned} candidate
+                      publications across Semantic Scholar, Crossref, and ORKG.
+                    </p>
+
+                    {auditResult.potentialCollisions.length > 0 ? (
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-xs font-semibold text-foreground">
+                          Closely Related Prior Art Detected (
+                          {auditResult.potentialCollisions.length}):
+                        </span>
+                        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                          {auditResult.potentialCollisions.map((col, idx) => (
+                            <div
+                              key={idx}
+                              className="p-2.5 rounded-lg border border-border bg-surface flex flex-col gap-1 text-xs"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <Chip size="sm">{col.source}</Chip>
+                                  {col.venue && (
+                                    <span className="font-semibold text-muted">
+                                      {col.venue}
+                                    </span>
+                                  )}
+                                  {col.year && (
+                                    <span className="text-muted">
+                                      ({col.year})
+                                    </span>
+                                  )}
+                                </div>
+                                {col.url && (
+                                  <a
+                                    href={col.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-link hover:underline inline-flex items-center gap-1 text-[11px]"
+                                  >
+                                    <span>View Paper</span>
+                                    <FontAwesomeIcon
+                                      icon={faArrowUpRightFromSquare}
+                                      className="text-[9px]"
+                                    />
+                                  </a>
+                                )}
+                              </div>
+                              <span className="font-medium text-foreground">
+                                {col.title}
+                              </span>
+                              <span className="text-muted text-[11px]">
+                                {col.similarityHint}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <Alert>
+                        <Alert.Indicator />
+                        <Alert.Content>
+                          <Alert.Description>
+                            High novelty clearance: No direct conceptual
+                            collisions found across Semantic Scholar, Crossref,
+                            or ORKG.
+                          </Alert.Description>
+                        </Alert.Content>
+                      </Alert>
+                    )}
+                  </div>
+                )}
+              </Tabs.Panel>
+
+              {/* Tab 2: ORKG Graph Mining Tab */}
               <Tabs.Panel id="orkg" className="pt-4 space-y-4">
                 <form
                   onSubmit={handleSearchOrkgProblems}
@@ -332,8 +561,7 @@ export default function IdeationStarterModal({
                         <Alert.Description>
                           No specific problem resource matched &quot;
                           {orkgProblemQuery}&quot;. Try one of the quick
-                          suggestions above or use the{' '}
-                          <strong>Topic Frontier</strong> tab.
+                          suggestions above.
                         </Alert.Description>
                       </Alert.Content>
                     </Alert>
@@ -345,11 +573,6 @@ export default function IdeationStarterModal({
                       <span className="text-xs font-semibold text-muted">
                         Select an ORKG Problem Graph ({orkgProblems.length}{' '}
                         found):
-                      </span>
-                      <span className="text-[11px] text-muted italic">
-                        Tip: Click <strong>+ Add to Prompt</strong> to add
-                        custom notes, or <strong>plane</strong> to generate
-                        immediately.
                       </span>
                     </div>
 
@@ -421,126 +644,6 @@ export default function IdeationStarterModal({
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-              </Tabs.Panel>
-
-              {/* Tab 2: Prior-Art Collision Audit Tab */}
-              <Tabs.Panel id="collision" className="pt-4 space-y-4">
-                <form
-                  onSubmit={handleRunCollisionAudit}
-                  className="flex flex-col gap-3"
-                >
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-sm font-semibold text-foreground">
-                      Candidate Hypothesis to Audit
-                    </Label>
-                    <TextArea
-                      rows={2}
-                      placeholder="e.g. Using diffusion probabilistic decoders with knowledge graph embeddings for relation extraction."
-                      value={auditHypothesis}
-                      onChange={(e) => setAuditHypothesis(e.target.value)}
-                      required
-                    />
-                    <Description className="text-xs text-muted">
-                      Audits literature across Semantic Scholar and ORKG to
-                      detect prior art collisions.
-                    </Description>
-                  </div>
-
-                  <TextField className="flex flex-col gap-1">
-                    <Label className="text-xs font-semibold text-foreground">
-                      Key Domain Keywords (Comma Separated)
-                    </Label>
-                    <Input
-                      placeholder="e.g. diffusion, knowledge graph, relation extraction"
-                      value={auditKeywords}
-                      onChange={(e) => setAuditKeywords(e.target.value)}
-                    />
-                  </TextField>
-
-                  <div className="flex justify-end pt-1">
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      isDisabled={isAuditing || !auditHypothesis.trim()}
-                    >
-                      {isAuditing ? (
-                        <Spinner size="sm" color="current" />
-                      ) : (
-                        <FontAwesomeIcon icon={faShieldHalved} />
-                      )}
-                      <span>Audit Prior-Art Collision</span>
-                    </Button>
-                  </div>
-                </form>
-
-                {auditResult && (
-                  <div className="p-4 rounded-xl border border-border bg-surface-secondary/40 space-y-3">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-foreground">
-                          Novelty Score:
-                        </span>
-                        <Chip size="sm">{auditResult.noveltyScore}%</Chip>
-                        <Chip size="sm">
-                          {auditResult.verdict.replace('_', ' ').toUpperCase()}
-                        </Chip>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onPress={() => handleAdoptAuditToChat(false)}
-                          className="text-xs"
-                          aria-label="Put into prompt box to add custom prompt"
-                        >
-                          + Add to Prompt
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          onPress={() => handleAdoptAuditToChat(true)}
-                          className="gap-1.5 text-xs"
-                        >
-                          <FontAwesomeIcon
-                            icon={faPaperPlane}
-                            className="text-xs"
-                          />
-                          <span>Generate Now</span>
-                        </Button>
-                      </div>
-                    </div>
-
-                    {auditResult.potentialCollisions.length > 0 ? (
-                      <div className="space-y-1.5 pt-1">
-                        <span className="text-xs font-semibold text-muted">
-                          Closely Related Prior Art Detected:
-                        </span>
-                        <ul className="text-xs space-y-1.5 list-disc list-inside text-muted">
-                          {auditResult.potentialCollisions.map((col, idx) => (
-                            <li key={idx}>
-                              <span className="font-medium text-foreground">
-                                {col.title}
-                              </span>
-                              <span className="ml-1 text-muted">
-                                ({col.similarityHint})
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : (
-                      <Alert>
-                        <Alert.Indicator />
-                        <Alert.Content>
-                          <Alert.Description>
-                            High novelty clearance: No direct conceptual
-                            collisions found in recent top venues.
-                          </Alert.Description>
-                        </Alert.Content>
-                      </Alert>
-                    )}
                   </div>
                 )}
               </Tabs.Panel>
