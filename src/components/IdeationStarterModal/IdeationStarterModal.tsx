@@ -7,6 +7,7 @@ import {
   faLightbulb,
   faMagnifyingGlass,
   faPaperPlane,
+  faPlus,
   faSearch,
   faShieldHalved,
   faTable,
@@ -40,7 +41,7 @@ import {
 export type IdeationStarterModalProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onSelectStarter: (prompt: string) => void;
+  onSelectStarter: (prompt: string, autoSend?: boolean) => void;
 };
 
 const SUGGESTED_ORKG_PROBLEMS = [
@@ -65,9 +66,7 @@ export default function IdeationStarterModal({
   const [isSearchingOrkg, setIsSearchingOrkg] = useState(false);
   const [hasSearchedOrkg, setHasSearchedOrkg] = useState(false);
   const [orkgProblems, setOrkgProblems] = useState<OrkgProblem[]>([]);
-  const [selectedOrkgProblem, setSelectedOrkgProblem] =
-    useState<OrkgProblem | null>(null);
-  const [isMiningGaps, setIsMiningGaps] = useState(false);
+  const [loadingProblemId, setLoadingProblemId] = useState<string | null>(null);
 
   // Prior-Art Collision Audit state
   const [auditHypothesis, setAuditHypothesis] = useState('');
@@ -82,7 +81,6 @@ export default function IdeationStarterModal({
     setIsSearchingOrkg(true);
     setHasSearchedOrkg(true);
     setOrkgProblems([]);
-    setSelectedOrkgProblem(null);
 
     try {
       const results = await searchDirectOrkgProblems(term.trim());
@@ -99,9 +97,14 @@ export default function IdeationStarterModal({
     executeOrkgSearch(orkgProblemQuery);
   };
 
-  const handleSelectProblemAndSynthesize = async (problem: OrkgProblem) => {
-    setSelectedOrkgProblem(problem);
-    setIsMiningGaps(true);
+  /**
+   * Prepares the full ORKG problem graph context and either auto-sends or places into input bar
+   */
+  const handleSelectProblem = async (
+    problem: OrkgProblem,
+    autoSend: boolean
+  ) => {
+    setLoadingProblemId(problem.id);
 
     let compContext = 'Problem benchmarks extracted from ORKG.';
     let metricsContext = '';
@@ -124,23 +127,24 @@ export default function IdeationStarterModal({
     } catch (err) {
       console.warn('Graph mining error:', err);
     } finally {
-      setIsMiningGaps(false);
+      setLoadingProblemId(null);
     }
 
-    onSelectStarter(
-      `Analyze the research problem "${problem.label}" (ORKG ID: ${problem.id}) directly from the Open Research Knowledge Graph.\n- ${compContext}\n${
-        metricsContext ? `- ${metricsContext}\n` : ''
-      }${
-        datasetContext ? `- ${datasetContext}\n` : ''
-      }Formulate 3 publication-grade, falsifiable research hypotheses addressing the current benchmark plateaus in this problem. Present each as a selectable checkbox with Heilmeier criteria.`
-    );
+    const promptText = `Analyze the research problem "${problem.label}" (ORKG ID: ${problem.id}) directly from the Open Research Knowledge Graph.\n- ${compContext}\n${
+      metricsContext ? `- ${metricsContext}\n` : ''
+    }${
+      datasetContext ? `- ${datasetContext}\n` : ''
+    }Formulate 3 publication-grade, falsifiable research hypotheses addressing the current benchmark plateaus in this problem. Present each as a selectable checkbox with Heilmeier criteria.`;
+
+    onSelectStarter(promptText, autoSend);
   };
 
   const handleDoiSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!doi.trim()) return;
     onSelectStarter(
-      `Please analyze foundational paper DOI: ${doi.trim()} using Crossref and Semantic Scholar. Extract its core contribution, documented limitations, and unexplored boundary conditions. Formulate 3 publication-grade, falsifiable research hypotheses addressing these exact gaps.`
+      `Please analyze foundational paper DOI: ${doi.trim()} using Crossref and Semantic Scholar. Extract its core contribution, documented limitations, and unexplored boundary conditions. Formulate 3 publication-grade, falsifiable research hypotheses addressing these exact gaps.`,
+      true
     );
   };
 
@@ -148,7 +152,8 @@ export default function IdeationStarterModal({
     e.preventDefault();
     if (!orcid.trim()) return;
     onSelectStarter(
-      `Please inspect my scholarly trajectory using ORCID: ${orcid.trim()} with the ORCID tool. Identify unexplored intersections across my publications, detect emerging methodological gaps, and propose 3 high-impact future research avenues.`
+      `Please inspect my scholarly trajectory using ORCID: ${orcid.trim()} with the ORCID tool. Identify unexplored intersections across my publications, detect emerging methodological gaps, and propose 3 high-impact future research avenues.`,
+      true
     );
   };
 
@@ -156,7 +161,8 @@ export default function IdeationStarterModal({
     e.preventDefault();
     if (!topic.trim()) return;
     onSelectStarter(
-      `Investigate the scientific frontier of "${topic.trim()}" across Semantic Scholar and ORKG. Identify 3 critical unsolved knowledge gaps, and formulate concrete hypotheses, baseline comparisons, and benchmark evaluation protocols.`
+      `Investigate the scientific frontier of "${topic.trim()}" across Semantic Scholar and ORKG. Identify 3 critical unsolved knowledge gaps, and formulate concrete hypotheses, baseline comparisons, and benchmark evaluation protocols.`,
+      true
     );
   };
 
@@ -180,7 +186,7 @@ export default function IdeationStarterModal({
     }
   };
 
-  const handleAdoptAuditToChat = () => {
+  const handleAdoptAuditToChat = (autoSend: boolean) => {
     if (!auditResult) return;
     const collisionList = auditResult.potentialCollisions
       .map((c) => `- "${c.title}" (${c.similarityHint})`)
@@ -192,7 +198,8 @@ export default function IdeationStarterModal({
         ' '
       )}). Potentially overlapping literature:\n${
         collisionList || 'None detected.'
-      }\n\nPlease perform an adversarial critique (Reviewer 2 stress-test) and formulate 3 publication-ready, falsifiable directions addressing these points.`
+      }\n\nPlease perform an adversarial critique (Reviewer 2 stress-test) and formulate 3 publication-ready, falsifiable directions addressing these points.`,
+      autoSend
     );
   };
 
@@ -326,58 +333,78 @@ export default function IdeationStarterModal({
 
                 {orkgProblems.length > 0 && (
                   <div className="space-y-2">
-                    <span className="text-xs font-semibold text-muted">
-                      Select an ORKG Problem Graph ({orkgProblems.length}{' '}
-                      found):
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-muted">
+                        Select an ORKG Problem Graph ({orkgProblems.length}{' '}
+                        found):
+                      </span>
+                      <span className="text-[11px] text-muted italic">
+                        Tip: Click <strong>+ Add to Prompt</strong> to add your
+                        own instructions, or <strong>plane</strong> to generate
+                        immediately.
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
                       {orkgProblems.map((problem) => (
                         <div
                           key={problem.id}
-                          className="p-3 rounded-xl border border-border bg-surface-secondary/40 hover:bg-surface-secondary cursor-pointer transition flex items-center justify-between gap-2"
-                          onClick={() =>
-                            handleSelectProblemAndSynthesize(problem)
-                          }
+                          className="p-3 rounded-xl border border-border bg-surface-secondary/40 hover:bg-surface-secondary transition flex items-center justify-between gap-2"
                         >
-                          <div className="flex flex-col min-w-0">
-                            <span className="font-semibold text-sm truncate text-foreground">
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span
+                              className="font-semibold text-sm truncate text-foreground"
+                              title={problem.label}
+                            >
                               {problem.label}
                             </span>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <Chip size="sm">ORKG GRAPH</Chip>
-                              <span className="text-xs text-muted font-mono">
-                                {problem.id}
-                              </span>
+                              <a
+                                href={`https://orkg.org/resource/${problem.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[11px] text-link hover:underline inline-flex items-center gap-1 font-mono"
+                                title="Open this resource on orkg.org"
+                              >
+                                <span>{problem.id}</span>
+                                <FontAwesomeIcon
+                                  icon={faArrowUpRightFromSquare}
+                                  className="text-[9px]"
+                                />
+                              </a>
                             </div>
                           </div>
-                          <div
-                            className="flex items-center gap-1.5 shrink-0"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <a
-                              href={`https://orkg.org/resource/${problem.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[11px] text-link hover:underline inline-flex items-center gap-1 px-2 py-1 rounded bg-surface-secondary border border-border"
-                              title="Verify this resource directly on orkg.org"
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {/* Option A: Inject into prompt bar to allow typing custom prompt */}
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="text-xs px-2 h-7 gap-1"
+                              title="Add to input bar and type your own instructions"
+                              isPending={loadingProblemId === problem.id}
+                              onPress={() =>
+                                handleSelectProblem(problem, false)
+                              }
                             >
-                              <span>View on ORKG</span>
                               <FontAwesomeIcon
-                                icon={faArrowUpRightFromSquare}
+                                icon={faPlus}
                                 className="text-[10px]"
                               />
-                            </a>
+                              <span className="hidden sm:inline">
+                                Add to Prompt
+                              </span>
+                            </Button>
+
+                            {/* Option B: Generate instantly */}
                             <Button
                               size="sm"
                               variant="primary"
-                              aria-label="Synthesize directions from this ORKG problem"
-                              isPending={
-                                isMiningGaps &&
-                                selectedOrkgProblem?.id === problem.id
-                              }
-                              onPress={() =>
-                                handleSelectProblemAndSynthesize(problem)
-                              }
+                              className="h-7 w-7 p-0 min-w-7"
+                              title="Generate ideas immediately"
+                              isPending={loadingProblemId === problem.id}
+                              onPress={() => handleSelectProblem(problem, true)}
                             >
                               <FontAwesomeIcon
                                 icon={faPaperPlane}
@@ -454,15 +481,29 @@ export default function IdeationStarterModal({
                           {auditResult.verdict.replace('_', ' ').toUpperCase()}
                         </Chip>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        onPress={handleAdoptAuditToChat}
-                        className="gap-2"
-                      >
-                        <FontAwesomeIcon icon={faPaperPlane} />
-                        <span>Generate Directions in Chat</span>
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onPress={() => handleAdoptAuditToChat(false)}
+                          className="text-xs"
+                          title="Put into prompt box to add custom prompt"
+                        >
+                          + Add to Prompt
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onPress={() => handleAdoptAuditToChat(true)}
+                          className="gap-1.5 text-xs"
+                        >
+                          <FontAwesomeIcon
+                            icon={faPaperPlane}
+                            className="text-xs"
+                          />
+                          <span>Generate Now</span>
+                        </Button>
+                      </div>
                     </div>
 
                     {auditResult.potentialCollisions.length > 0 ? (
@@ -489,9 +530,7 @@ export default function IdeationStarterModal({
                         <Alert.Content>
                           <Alert.Description>
                             High novelty clearance: No direct conceptual
-                            collisions found in recent top venues. Click{' '}
-                            <strong>Generate Directions in Chat</strong> to
-                            produce the formal hypothesis formulation.
+                            collisions found in recent top venues.
                           </Alert.Description>
                         </Alert.Content>
                       </Alert>
