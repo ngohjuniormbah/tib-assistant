@@ -1,4 +1,6 @@
-import { AttachedContext } from '@/components/TextareaLlm/TextareaLlm';
+'use client';
+
+import type { AttachedContext } from '@/components/TextareaLlm/TextareaLlm';
 ('use client');
 
 import {

@@ -31,7 +31,7 @@ import Message from '@/components/Llm/Message/Message';
 import useLlm from '@/components/Llm/useLlm';
 import OrkgNlQueryModal from '@/components/OrkgNlQueryModal/OrkgNlQueryModal';
 import sidebarsContext from '@/components/SidebarsProvider/sidebarsContext';
-import { AttachedContext } from '@/components/TextareaLlm/TextareaLlm';
+import type { AttachedContext } from '@/components/TextareaLlm/TextareaLlm';
 import useIndexedDbStore from '@/components/useIndexedDbStore/useIndexedDbStore';
 import useIndexedDbStores from '@/components/useIndexedDbStores/useIndexedDbStores';
 import { AssetId } from '@/config/assets';
