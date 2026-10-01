@@ -41,7 +41,11 @@ import {
 export type IdeationStarterModalProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onSelectStarter: (prompt: string, autoSend?: boolean) => void;
+  onSelectStarter: (
+    prompt: string,
+    autoSend?: boolean,
+    attachedCtx?: any
+  ) => void;
 };
 
 const SUGGESTED_ORKG_PROBLEMS = [

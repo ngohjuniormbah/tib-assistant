@@ -1,4 +1,9 @@
-import { faArrowUp, faCog } from '@fortawesome/free-solid-svg-icons';
+import {
+  faArrowUp,
+  faCog,
+  faTable,
+  faTimes,
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   Alert,
@@ -30,6 +35,14 @@ export type ActionButton = {
   fileAllowMultiple?: boolean;
 };
 
+export type AttachedContext = {
+  id?: string;
+  title: string;
+  type: 'benchmark' | 'paper' | 'doi' | 'topic';
+  url?: string;
+  details?: string;
+};
+
 type TextareaLlmProps = {
   input: string;
   setInput: Dispatch<SetStateAction<string>>;
@@ -38,6 +51,8 @@ type TextareaLlmProps = {
   sendMessage: ReturnType<typeof useLlm>['sendMessage'];
   defaultEnabledTools?: { [mcpUrl: string]: string[] };
   assistantId: string;
+  attachedContext?: AttachedContext | null;
+  setAttachedContext?: (ctx: AttachedContext | null) => void;
 };
 
 export default function TextareaLlm({
@@ -48,6 +63,8 @@ export default function TextareaLlm({
   sendMessage,
   defaultEnabledTools = {},
   assistantId,
+  attachedContext,
+  setAttachedContext,
 }: TextareaLlmProps) {
   const [files, setFiles] = useState<FileList | undefined>(undefined);
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -57,10 +74,8 @@ export default function TextareaLlm({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      // Enter always means "send" (Shift+Enter inserts the newline), so
-      // swallow it even when sending is not possible right now
       e.preventDefault();
-      if (!isDisabled && !isLoading && input.trim()) {
+      if (!isDisabled && !isLoading && (input.trim() || attachedContext)) {
         formRef.current?.requestSubmit();
       }
     }
@@ -68,30 +83,32 @@ export default function TextareaLlm({
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // a second request while one is streaming corrupts the useChat state
-    // (duplicated messages and a crash in the AI SDK's makeRequest)
-    if (isDisabled || isLoading || !input.trim()) {
+    if (isDisabled || isLoading || (!input.trim() && !attachedContext)) {
       return;
     }
+
+    const cleanPrompt =
+      input.trim() ||
+      (attachedContext?.type === 'benchmark'
+        ? 'Formulate 3 publication-grade hypotheses addressing benchmark plateaus.'
+        : 'Analyze this input and propose publication-grade research directions.');
+
+    let messageText = cleanPrompt;
+    if (attachedContext) {
+      const metadataTag = `[ATTACHED_CONTEXT:${JSON.stringify(attachedContext)}]`;
+      messageText = `${metadataTag}\n${cleanPrompt}`;
+    }
+
     setInput('');
-
-    // PDF upload is currently disabled
-
-    // PDF files cannot be processed by OpenAI, so instead send them as additional data and handle them separately in a tool calling
-    // let filesArray = null;
-    // if (files) {
-    //   filesArray = await serializeFileListWithContent(files);
-    // }
+    if (setAttachedContext) {
+      setAttachedContext(null);
+    }
 
     sendMessage({
-      // role: 'user',
-      // content:
-      //   input + (filesArray ? filesArray.map((file) => `"${file.name}"`) : ''),
-      // data: filesArray,
       role: 'user',
-      parts: [{ type: 'text', text: input }],
+      parts: [{ type: 'text', text: messageText }],
     });
-    setFiles(undefined); // ensure file selectors can be used again
+    setFiles(undefined);
   };
 
   const removeFile = (indexToRemove: number) => {
@@ -108,7 +125,6 @@ export default function TextareaLlm({
   };
 
   const configureToolsModalState = useOverlayState();
-
   const store = useStore();
 
   const enabledToolsCount = Object.values(
@@ -145,11 +161,48 @@ export default function TextareaLlm({
           variant="secondary"
           className="mt-4 flex w-full flex-col gap-2 rounded-3xl border p-2 transition-colors focus-within:border-muted/50"
         >
+          {/* Visual attachment preview badge */}
+          {attachedContext && (
+            <div className="flex items-center gap-2 px-2 pt-1 pb-0 flex-wrap">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-surface border border-border text-foreground text-xs shadow-xs max-w-full">
+                <FontAwesomeIcon
+                  icon={faTable}
+                  className="text-accent text-xs"
+                />
+                <span className="font-semibold text-muted">
+                  Input {attachedContext.type.toUpperCase()}:
+                </span>
+                <span className="font-medium text-foreground truncate max-w-xs">
+                  {attachedContext.title}
+                </span>
+                {attachedContext.id && (
+                  <span className="font-mono text-[10px] text-muted">
+                    ({attachedContext.id})
+                  </span>
+                )}
+                {setAttachedContext && (
+                  <button
+                    type="button"
+                    onClick={() => setAttachedContext(null)}
+                    className="ml-1 text-muted hover:text-foreground p-0.5"
+                    aria-label="Remove input attachment"
+                  >
+                    <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <TextArea
             fullWidth
             ref={textareaRef}
             value={input}
-            placeholder="Type your message..."
+            placeholder={
+              attachedContext
+                ? 'Type your custom prompt (or press Enter to generate with this benchmark)...'
+                : 'Type your message...'
+            }
             onChange={(e) => setInput(e.target.value)}
             rows={1}
             onKeyDown={handleKeyDown}
@@ -207,7 +260,7 @@ export default function TextareaLlm({
               type="submit"
               className="ms-2 rounded-full"
               size="sm"
-              isDisabled={isDisabled || !input.trim()}
+              isDisabled={isDisabled || (!input.trim() && !attachedContext)}
               isPending={isLoading}
             >
               {({ isPending }) => (
