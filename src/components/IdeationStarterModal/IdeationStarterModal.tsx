@@ -42,6 +42,13 @@ export type IdeationStarterModalProps = {
   onSelectStarter: (prompt: string) => void;
 };
 
+const SUGGESTED_ORKG_PROBLEMS = [
+  'Question Answering over Knowledge Graphs',
+  'Zero-shot Scientific Entity Linking',
+  'Biomedical Relation Extraction',
+  'Open-Domain Question Answering',
+];
+
 export default function IdeationStarterModal({
   isOpen,
   onOpenChange,
@@ -69,6 +76,65 @@ export default function IdeationStarterModal({
     null
   );
 
+  const executeOrkgSearch = async (term: string) => {
+    if (!term.trim()) return;
+    setIsSearchingOrkg(true);
+    setHasSearchedOrkg(true);
+    setOrkgProblems([]);
+    setSelectedOrkgProblem(null);
+
+    try {
+      const results = await searchDirectOrkgProblems(term.trim());
+      setOrkgProblems(results);
+    } catch (err) {
+      console.error('ORKG search error:', err);
+    } finally {
+      setIsSearchingOrkg(false);
+    }
+  };
+
+  const handleSearchOrkgProblems = (e: FormEvent) => {
+    e.preventDefault();
+    executeOrkgSearch(orkgProblemQuery);
+  };
+
+  const handleSelectProblemAndSynthesize = async (problem: OrkgProblem) => {
+    setSelectedOrkgProblem(problem);
+    setIsMiningGaps(true);
+
+    let compContext = 'Problem benchmarks extracted from ORKG.';
+    let metricsContext = '';
+    let datasetContext = '';
+
+    try {
+      const graph = await getOrkgProblemGraph(problem.id);
+      if (graph && graph.comparisons.length > 0) {
+        compContext = `Existing ORKG Comparisons: ${graph.comparisons
+          .map((c) => c.title)
+          .slice(0, 3)
+          .join('; ')}.`;
+      }
+      if (graph && graph.metrics.length > 0) {
+        metricsContext = `Observed ORKG Evaluation Metrics: ${graph.metrics.join(', ')}.`;
+      }
+      if (graph && graph.datasets.length > 0) {
+        datasetContext = `ORKG Benchmark Datasets: ${graph.datasets.join(', ')}.`;
+      }
+    } catch (err) {
+      console.warn('Graph mining error:', err);
+    } finally {
+      setIsMiningGaps(false);
+    }
+
+    onSelectStarter(
+      `Analyze the research problem "${problem.label}" (ORKG ID: ${problem.id}) directly from the Open Research Knowledge Graph.\n- ${compContext}\n${
+        metricsContext ? `- ${metricsContext}\n` : ''
+      }${
+        datasetContext ? `- ${datasetContext}\n` : ''
+      }Formulate 3 publication-grade, falsifiable research hypotheses addressing the current benchmark plateaus in this problem. Present each as a selectable checkbox with Heilmeier criteria.`
+    );
+  };
+
   const handleDoiSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!doi.trim()) return;
@@ -93,66 +159,24 @@ export default function IdeationStarterModal({
     );
   };
 
-  const handleSearchOrkgProblems = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!orkgProblemQuery.trim()) return;
-    setIsSearchingOrkg(true);
-    setHasSearchedOrkg(true);
-    setOrkgProblems([]);
-    setSelectedOrkgProblem(null);
-
-    const results = await searchDirectOrkgProblems(orkgProblemQuery.trim());
-    setOrkgProblems(results);
-    setIsSearchingOrkg(false);
-  };
-
-  const handleSelectProblemAndSynthesize = async (problem: OrkgProblem) => {
-    setSelectedOrkgProblem(problem);
-    setIsMiningGaps(true);
-
-    const graph = await getOrkgProblemGraph(problem.id);
-    setIsMiningGaps(false);
-
-    const compContext =
-      graph && graph.comparisons.length > 0
-        ? `Existing ORKG Comparisons: ${graph.comparisons
-            .map((c) => c.title)
-            .slice(0, 3)
-            .join('; ')}.`
-        : 'Pioneer research problem in ORKG without extensive comparisons yet.';
-
-    const metricsContext =
-      graph && graph.metrics.length > 0
-        ? `Observed ORKG Evaluation Metrics: ${graph.metrics.join(', ')}.`
-        : '';
-
-    const datasetContext =
-      graph && graph.datasets.length > 0
-        ? `ORKG Benchmark Datasets: ${graph.datasets.join(', ')}.`
-        : '';
-
-    onSelectStarter(
-      `Analyze the research problem "${problem.label}" (ORKG ID: ${problem.id}) directly from the Open Research Knowledge Graph.\n- ${compContext}\n${
-        metricsContext ? `- ${metricsContext}\n` : ''
-      }${
-        datasetContext ? `- ${datasetContext}\n` : ''
-      }Formulate 3 publication-grade, falsifiable research hypotheses addressing the current benchmark plateaus in this problem. Present each as a selectable checkbox with Heilmeier criteria.`
-    );
-  };
-
   const handleRunCollisionAudit = async (e: FormEvent) => {
     e.preventDefault();
     if (!auditHypothesis.trim()) return;
     setIsAuditing(true);
     setAuditResult(null);
 
-    const keywords = auditKeywords
-      .split(',')
-      .map((k) => k.trim())
-      .filter(Boolean);
-    const result = await checkPriorArtCollision(auditHypothesis, keywords);
-    setAuditResult(result);
-    setIsAuditing(false);
+    try {
+      const keywords = auditKeywords
+        .split(',')
+        .map((k) => k.trim())
+        .filter(Boolean);
+      const result = await checkPriorArtCollision(auditHypothesis, keywords);
+      setAuditResult(result);
+    } catch (err) {
+      console.error('Audit error:', err);
+    } finally {
+      setIsAuditing(false);
+    }
   };
 
   const handleAdoptAuditToChat = () => {
@@ -240,7 +264,7 @@ export default function IdeationStarterModal({
                       Search Research Problem or Benchmark in ORKG
                     </Label>
                     <Input
-                      placeholder="e.g. Entity Linking, Question Answering, Knowledge Graph"
+                      placeholder="e.g. Question Answering, Entity Linking"
                       value={orkgProblemQuery}
                       onChange={(e) => setOrkgProblemQuery(e.target.value)}
                       required
@@ -260,6 +284,29 @@ export default function IdeationStarterModal({
                   </Button>
                 </form>
 
+                {/* Instant Suggestions */}
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted font-medium">
+                    Quick Suggestions:
+                  </span>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {SUGGESTED_ORKG_PROBLEMS.map((suggestion) => (
+                      <Button
+                        key={suggestion}
+                        size="sm"
+                        variant="secondary"
+                        className="text-xs py-0.5 px-2.5 h-6"
+                        onPress={() => {
+                          setOrkgProblemQuery(suggestion);
+                          executeOrkgSearch(suggestion);
+                        }}
+                      >
+                        {suggestion}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
                 {hasSearchedOrkg &&
                   !isSearchingOrkg &&
                   orkgProblems.length === 0 && (
@@ -267,10 +314,10 @@ export default function IdeationStarterModal({
                       <Alert.Indicator />
                       <Alert.Content>
                         <Alert.Description>
-                          No structured ORKG problem matched &quot;
-                          {orkgProblemQuery}&quot;. You can use the{' '}
-                          <strong>Topic Frontier</strong> tab to search across
-                          Semantic Scholar directly.
+                          No specific problem resource matched &quot;
+                          {orkgProblemQuery}&quot;. Try one of the quick
+                          suggestions above or use the{' '}
+                          <strong>Topic Frontier</strong> tab.
                         </Alert.Description>
                       </Alert.Content>
                     </Alert>
@@ -279,7 +326,8 @@ export default function IdeationStarterModal({
                 {orkgProblems.length > 0 && (
                   <div className="space-y-2">
                     <span className="text-xs font-semibold text-muted">
-                      Select an ORKG Problem or Benchmark Table:
+                      Select an ORKG Problem Graph ({orkgProblems.length}{' '}
+                      found):
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
                       {orkgProblems.map((problem) => (
@@ -295,7 +343,7 @@ export default function IdeationStarterModal({
                               {problem.label}
                             </span>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <Chip size="sm">ORKG PROBLEM</Chip>
+                              <Chip size="sm">ORKG GRAPH</Chip>
                               <span className="text-xs text-muted font-mono">
                                 {problem.id}
                               </span>
