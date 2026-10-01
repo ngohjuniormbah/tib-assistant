@@ -27,11 +27,13 @@ import {
 import { FormEvent, useState } from 'react';
 
 import {
+  getOrkgProblemGraph,
+  OrkgProblem,
+  searchDirectOrkgProblems,
+} from '@/services/orkgClient';
+import {
   checkPriorArtCollision,
-  mineOrkgProblemGaps,
-  OrkgProblemSummary,
   PriorArtCollisionCheck,
-  searchOrkgProblems,
 } from '@/services/orkgDiscovery';
 
 export type IdeationStarterModalProps = {
@@ -54,9 +56,9 @@ export default function IdeationStarterModal({
   const [orkgProblemQuery, setOrkgProblemQuery] = useState('');
   const [isSearchingOrkg, setIsSearchingOrkg] = useState(false);
   const [hasSearchedOrkg, setHasSearchedOrkg] = useState(false);
-  const [orkgProblems, setOrkgProblems] = useState<OrkgProblemSummary[]>([]);
+  const [orkgProblems, setOrkgProblems] = useState<OrkgProblem[]>([]);
   const [selectedOrkgProblem, setSelectedOrkgProblem] =
-    useState<OrkgProblemSummary | null>(null);
+    useState<OrkgProblem | null>(null);
   const [isMiningGaps, setIsMiningGaps] = useState(false);
 
   // Prior-Art Collision Audit state
@@ -99,27 +101,42 @@ export default function IdeationStarterModal({
     setOrkgProblems([]);
     setSelectedOrkgProblem(null);
 
-    const results = await searchOrkgProblems(orkgProblemQuery.trim());
+    const results = await searchDirectOrkgProblems(orkgProblemQuery.trim());
     setOrkgProblems(results);
     setIsSearchingOrkg(false);
   };
 
-  const handleSelectProblemAndSynthesize = async (
-    problem: OrkgProblemSummary
-  ) => {
+  const handleSelectProblemAndSynthesize = async (problem: OrkgProblem) => {
     setSelectedOrkgProblem(problem);
     setIsMiningGaps(true);
 
-    const gapReport = await mineOrkgProblemGaps(problem.id);
+    const graph = await getOrkgProblemGraph(problem.id);
     setIsMiningGaps(false);
 
-    const propertiesText =
-      gapReport && gapReport.evaluatedProperties.length > 0
-        ? `Observed benchmark properties in ORKG: ${gapReport.evaluatedProperties.join(', ')}.`
-        : 'Pioneer research area in ORKG.';
+    const compContext =
+      graph && graph.comparisons.length > 0
+        ? `Existing ORKG Comparisons: ${graph.comparisons
+            .map((c) => c.title)
+            .slice(0, 3)
+            .join('; ')}.`
+        : 'Pioneer research problem in ORKG without extensive comparisons yet.';
+
+    const metricsContext =
+      graph && graph.metrics.length > 0
+        ? `Observed ORKG Evaluation Metrics: ${graph.metrics.join(', ')}.`
+        : '';
+
+    const datasetContext =
+      graph && graph.datasets.length > 0
+        ? `ORKG Benchmark Datasets: ${graph.datasets.join(', ')}.`
+        : '';
 
     onSelectStarter(
-      `I want to formulate new research directions for the ORKG research problem "${problem.label}" (ID: ${problem.id}). ${propertiesText} Formulate 3 publication-grade, falsifiable research hypotheses with target benchmark datasets that break past current limitations.`
+      `Analyze the research problem "${problem.label}" (ORKG ID: ${problem.id}) directly from the Open Research Knowledge Graph.\n- ${compContext}\n${
+        metricsContext ? `- ${metricsContext}\n` : ''
+      }${
+        datasetContext ? `- ${datasetContext}\n` : ''
+      }Formulate 3 publication-grade, falsifiable research hypotheses addressing the current benchmark plateaus in this problem. Present each as a selectable checkbox with Heilmeier criteria.`
     );
   };
 
@@ -145,7 +162,12 @@ export default function IdeationStarterModal({
       .join('\n');
 
     onSelectStarter(
-      `I want to formulate publication-grade directions for this hypothesis: "${auditHypothesis}". Prior-art collision audit scored novelty at ${auditResult.noveltyScore}% (${auditResult.verdict.replace('_', ' ')}). Potentially overlapping literature:\n${collisionList || 'None detected.'}\n\nPlease perform an adversarial critique (Reviewer 2 stress-test) and formulate 3 publication-ready, falsifiable directions addressing these points.`
+      `I want to formulate publication-grade directions for this hypothesis: "${auditHypothesis}". Prior-art collision audit scored novelty at ${auditResult.noveltyScore}% (${auditResult.verdict.replace(
+        '_',
+        ' '
+      )}). Potentially overlapping literature:\n${
+        collisionList || 'None detected.'
+      }\n\nPlease perform an adversarial critique (Reviewer 2 stress-test) and formulate 3 publication-ready, falsifiable directions addressing these points.`
     );
   };
 
@@ -207,7 +229,7 @@ export default function IdeationStarterModal({
                 </Tabs.List>
               </Tabs.ListContainer>
 
-              {/* ORKG Graph Mining Tab */}
+              {/* Tab 1: ORKG Graph Mining Tab */}
               <Tabs.Panel id="orkg" className="pt-4 space-y-4">
                 <form
                   onSubmit={handleSearchOrkgProblems}
@@ -273,9 +295,7 @@ export default function IdeationStarterModal({
                               {problem.label}
                             </span>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <Chip size="sm">
-                                {problem.type.toUpperCase()}
-                              </Chip>
+                              <Chip size="sm">ORKG PROBLEM</Chip>
                               <span className="text-xs text-muted font-mono">
                                 {problem.id}
                               </span>
@@ -301,7 +321,7 @@ export default function IdeationStarterModal({
                 )}
               </Tabs.Panel>
 
-              {/* Prior-Art Collision Audit Tab */}
+              {/* Tab 2: Prior-Art Collision Audit Tab */}
               <Tabs.Panel id="collision" className="pt-4 space-y-4">
                 <form
                   onSubmit={handleRunCollisionAudit}
@@ -409,7 +429,7 @@ export default function IdeationStarterModal({
                 )}
               </Tabs.Panel>
 
-              {/* Seed DOI Tab */}
+              {/* Tab 3: Seed DOI Tab */}
               <Tabs.Panel id="doi" className="pt-4">
                 <form
                   onSubmit={handleDoiSubmit}
@@ -442,7 +462,7 @@ export default function IdeationStarterModal({
                 </form>
               </Tabs.Panel>
 
-              {/* Topic Search Tab */}
+              {/* Tab 4: Topic Search Tab */}
               <Tabs.Panel id="topic" className="pt-4">
                 <form
                   onSubmit={handleTopicSubmit}
@@ -475,7 +495,7 @@ export default function IdeationStarterModal({
                 </form>
               </Tabs.Panel>
 
-              {/* ORCID Profile Tab */}
+              {/* Tab 5: ORCID Profile Tab */}
               <Tabs.Panel id="orcid" className="pt-4">
                 <form
                   onSubmit={handleOrcidSubmit}
