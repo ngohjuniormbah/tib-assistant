@@ -20,6 +20,11 @@ export const metadata: Metadata = {
     template: '%s | TIB AIssistant',
     default: 'TIB AIssistant',
   },
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default async function RootLayout({
