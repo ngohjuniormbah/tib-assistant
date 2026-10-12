@@ -21,7 +21,10 @@ export const metadata: Metadata = {
     default: 'TIB AIssistant',
   },
   icons: {
-    icon: '/icon.svg',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
     shortcut: '/icon.svg',
     apple: '/icon.svg',
   },
