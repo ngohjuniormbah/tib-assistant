@@ -1,0 +1,71 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+import mainConceptsScreenshot from './assets/main-concepts-screenshot.png';
+import Image from 'next/image';
+
+<Meta title="Introduction" />
+
+# TIB AIssistant development documentation
+
+<div
+  style={{
+    padding: '2px 10px',
+    backgroundColor: '#FFFA99',
+    color: '#333',
+    fontSize: '14px',
+    borderRadius: '5px',
+  }}
+>
+  **Caution:** The TIB AIssistant codebase is an early-stage prototype. This documentation is a draft and
+  may contain errors. Additionally, the APIs, schemas, and code examples are
+  subject to change.
+</div>
+
+This documentation provides all necessary information to contribute to the TIB AIssistant, specifically to create your own extensions.
+
+## Main concepts
+
+The AIssistant uses three main concepts that can be configured and extended:
+
+1. **Assistants**: refer to an assistant (or agent) performing a specific tasks.
+2. **Tools**: refer to the tools that the assistant can use to perform its tasks. Tools generally are external APIs that can be called by the assistant.
+3. **Assets**: refer to the data that the assistant can use (input) or produce (output).
+
+All three concepts can be configured by the end user. Concretely this means that users can enable and disable specific assistants/tools/assets to their likings. Adding additional items can only be done by developers.
+
+<Image
+  src={mainConceptsScreenshot}
+  alt="Main concepts"
+  style={{ width: '100%', height: 'auto' }}
+/>
+
+To extend the AIssistant, use the left sidebar to navigate to the respective section. Simple modifications can be made by only editing a few files, located in the `./src/config` folder.
+
+## Technology stack
+
+The TIB AIssistant is built using [Next.js](https://nextjs.org/), providing both the frontend and backend capabilities. The backend uses Next.js' _server actions_. Other noteworthy technologies include:
+
+- [Next.js](https://nextjs.org/) as both frontend and backend framework.
+- [TypeScript](https://www.typescriptlang.org/) as programming language.
+- [React](https://reactjs.org/) for building the user interface.
+- [AI SDK](https://sdk.vercel.ai/) for LLM integration.
+- [Tailwind CSS](https://tailwindcss.com/) for styling.
+- [HeroUI](https://www.heroui.com/) for UI component.
+- [Dexie.js](https://dexie.org/) for local data storage.
+- [Ky](https://github.com/sindresorhus/ky) as fetch wrapper.
+- [SWR](https://swr.vercel.app/) for client data fetching.
+- [React Context](https://react.dev/reference/react/createContext) for global state management.
+- [FontAwesome](https://fontawesome.com/) for icons.
+- [Motion](https://motion.dev/) for animations.
+
+## Contributing
+
+We welcome any contribution to the TIB AIssistant, from fixing typos in the documentation to adding new assistants. As the main part of this codebase is written in TypeScript, [a basic understanding of TypeScript](https://www.typescriptlang.org/docs/handbook/typescript-from-scratch.html) is required. However, when making simple additions, just changing the config files is generally enough, so (almost) no programming is required then!
+
+When contributing, most likely the following two use cases are most frequent:
+
+- **Adding a new tool.** This lets users call tools from existing assistants. Tools live on external MCP servers; the app only registers servers and gallery metadata in `./src/config/mcpServers.ts` and `./src/config/toolGallery.ts`. You can enable tools by default per assistant in `./src/config/assistants/*.ts`. Tools don't have to be enabled by default, so niche tools are still useful. When enabled, the LLM chooses when to call a tool via the [tool calling mechanism](https://sdk.vercel.ai/docs/ai-sdk-core/tools-and-tool-calling). Invocations go to the MCP server; the user must confirm before execution. See the Tools section on the left for details.
+- **Adding a new assistant.** This adds a new assistant to the list of available assistants. These can be assistants for generic research tasks, or domain-specific assistants. As with Tools, not all Assistants are enabled by default, so creating assistants to perform tasks for a specific use case, is still helpful. Assistants are added by creating a configuration file using the `Assistant` type in `./src/config/assistants/`. No programming beyond editing config files is needed for standard assistants. When assistants produce or consume data that is not yet part of the existing assets, it is possible to add new asset types as well. For more information, visit the assistants section on the left.
+
+In addition to those types of contribution, we of course welcome any other type of contribution as well.
+
+We recommend using [Visual Studio Code](https://code.visualstudio.com/) as IDE. By default, Visual Studio Code displays TypeScript type hints, helping when creating new assistants, tools or assets. In addition, we recommend installing the [Prettier](https://prettier.io/) extension for code formatting and the [ESLint](https://eslint.org/) extension for linting. This will help you to write clean code and avoid common mistakes. This repo comes with a configured ESLint and Prettier setup to ensure a consistent code style.

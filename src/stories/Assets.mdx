@@ -1,0 +1,131 @@
+import { Meta, Source } from '@storybook/addon-docs/blocks';
+import dedent from 'ts-dedent';
+import ASSETS from '../config/assets';
+
+<Meta title="Main concepts/Assets" />
+
+# Assets
+
+Assets are data that is either produced (output) or used (input) by assistants. At this moment, all assets are stored locally in the browser, via IndexedDB API using [Dexie.js](https://dexie.org/). Which assets are displayed for a certain assistant is determined by the `inputAssets` and `outputAssets` arrays in the assistant's `agent` configuration. Assets listed in `inputAssets` can be sent to the chat via the _Arrow up button_ left of the asset name in the sidebar. Which assets are enabled can also be configured by the user, overwriting the default configuration from the assistant.
+
+## Asset schema
+
+Assets are defined in the `./src/config/assets.ts` file. The default exported `ASSETS` array contains all available assets. This array following the following schema:
+
+| Path     | Description                                                                                                            | Data Type                                     |
+| -------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `id`     | The unique identifier of the asset (camelCase) .                                                                       | `string`                                      |
+| `name`   | The name of the asset.                                                                                                 | `string`                                      |
+| `type`   | The asset type.                                                                                                        | `text`, `json`, `object`                      |
+| `schema` | In case type is `object`, the schema must be provided. <a href="#adding-an-object-asset" target="_self">More info</a>. | `{ id: string; name: string; type: string; }` |
+
+## Visibility of assets
+
+Which assets are displayed by default is determine by the configuration of a specific assistant. For more information, see the Assistants section in the left sidebar.
+
+## Adding a new asset
+
+Open the file `./src/config/assets.ts`. First, add a new `AssetId` at the top of the file:
+
+<Source
+  language="typescript"
+  dark
+  format={false}
+  type="dynamic"
+  code={dedent`
+// ./src/config/assets.ts
+export type AssetId =
+  | 'ideationTopics'
+  | 'researchQuestions'
+  | '...'
+  | 'newAssetId'
+  `}
+/>
+
+Then, add your asset to the `ASSETS`, use the `id` you just added. Assets are always arrays. In the future, we are planning to support more types.
+
+<Source
+  language="typescript"
+  dark
+  format={false}
+  type="dynamic"
+  code={dedent`
+// ./src/config/assets.ts
+const ASSETS: Asset[] = [
+  {
+    id: 'ideationTopics',
+    name: 'Ideation topics',
+    type: 'text',
+  },
+  {...}
+  {
+    id: 'newAssetId',
+    name: 'My new asset',
+    type: 'text', // supported: 'text', 'json' and 'object'
+  },
+]
+  `}
+/>
+
+### Adding an object asset
+
+An asset can follow a specific schema when the `object` type is used. The schema is defined via the `schema` key. Ensure that IDs of the assets within the schema are also added to the `AssetId` type on top. Prefixing an ID with the parent asset ID could be helpful to identify assets later (in the example, prefixed with `newAssetId.`)
+
+<Source
+  language="typescript"
+  dark
+  format={false}
+  type="dynamic"
+  code={dedent`
+// ./src/config/assets.ts
+  {
+    id: 'newAssetId',
+    name: 'My new object asset',
+    type: 'object',
+    schema: [
+      {
+        id: 'newAssetId.title',
+        name: 'Title',
+        type: 'text',
+      },
+      {
+        id: 'newAssetId.relatedWork',
+        name: 'Related work',
+        type: 'text',
+      },
+    ],
+  },
+  `}
+/>
+
+# Asset list
+
+The table below lists all available assets:
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    {ASSETS.map((asset) => (
+      <>
+        <tr key={asset.id}>
+          <td>{asset.id}</td>
+          <td>{asset.name}</td>
+          <td>{asset.type}</td>
+        </tr>
+        {asset.schema?.map((subAsset) => (
+          <tr key={subAsset.id}>
+            <td>↳ {subAsset.id}</td>
+            <td>{subAsset.name}</td>
+            <td>{subAsset.type}</td>
+          </tr>
+        ))}
+      </>
+    ))}
+  </tbody>
+</table>

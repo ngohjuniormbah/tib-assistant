@@ -1,0 +1,79 @@
+services:
+  web-app:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env.local
+    networks:
+      - tib-aissistant
+    extra_hosts:
+      - 'pocketbase.localhost:host-gateway'
+
+  pocketbase:
+    image: registry.gitlab.com/tibhannover/orkg/tib-aissistant/pocketbase:latest
+    restart: on-failure
+    ports:
+      - 8090:8080
+    networks:
+      - tib-aissistant
+    volumes:
+      - pocketbase-data:/pb/pb_data
+      - ./dev/pocketbase/devSetupMigration.js:/pb/pb_migrations/devSetupMigration.js
+    extra_hosts:
+      - 'keycloak.localhost:host-gateway'
+
+  keycloak:
+    image: registry.gitlab.com/tibhannover/orkg/keycloak-docker-image:26
+    command:
+      - start
+      - --optimized
+      - --import-realm
+    ports:
+      - '8080:8080'
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://keycloak.localhost:8080
+      KC_HOSTNAME_STRICT: false
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/postgres
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KC_HTTP_ENABLED: true
+      TZ: Europe/Berlin
+    volumes:
+      - ./dev/keycloak/src/main/resources/import:/opt/keycloak/data/import:ro
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+    networks:
+      - tib-aissistant
+
+  keycloak-postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: Europe/Berlin
+    volumes:
+      - 'keycloak-data:/var/lib/postgresql/data/pgdata'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - tib-aissistant
+
+networks:
+  tib-aissistant:
+
+volumes:
+  postgres-data:
+  keycloak-data:
+  pocketbase-data:
