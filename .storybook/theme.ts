@@ -6,6 +6,6 @@ export default create({
   base: 'light',
   brandTitle: 'TIB Assistant',
   brandUrl: 'https://tib.eu',
-  brandImage: logo.src.src,
+  brandImage: logo.src,
   brandTarget: '_self',
 });

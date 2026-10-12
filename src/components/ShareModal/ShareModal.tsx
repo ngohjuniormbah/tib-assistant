@@ -341,7 +341,7 @@ export default function ShareModal({
               </ScrollShadow>
             </div>
 
-            {/* Section 3: General Access (Google Drive model) */}
+            {/* Section 3: General Access */}
             <div className="p-3.5 rounded-2xl bg-surface-secondary/50 border border-border space-y-2">
               <span className="text-xs font-bold text-foreground">
                 General access
