@@ -1,46 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <!-- TIB Signature Gradient for Top Knowledge Layer -->
     <linearGradient id="tibTopGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FF5A36" />
       <stop offset="50%" stop-color="#DE2312" />
       <stop offset="100%" stop-color="#AE1313" />
     </linearGradient>
-
-    <!-- Ambient Shadow for Isometric Depth -->
     <filter id="layerShadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#550A0A" flood-opacity="0.35" />
     </filter>
-
-    <!-- Subtle Background Tile for Contrast in Light and Dark Browser Tabs -->
     <radialGradient id="tabTile" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95" />
       <stop offset="100%" stop-color="#F1F4F6" stop-opacity="0.9" />
     </radialGradient>
   </defs>
-
-  <!-- Clean App Tile (keeps the icon visible in both light & dark browser tabs) -->
   <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#tabTile)" stroke="#E1E9EF" stroke-width="1.2" />
-
-  <!-- Layer 6 (Base layer, translucent) -->
   <polygon points="32,38 52,48 32,58 12,48" fill="#F49080" opacity="0.35" />
-
-  <!-- Layer 5 -->
   <polygon points="32,33 52,43 32,53 12,43" fill="#EE705C" opacity="0.48" />
-
-  <!-- Layer 4 -->
   <polygon points="32,28 52,38 32,48 12,38" fill="#E54E38" opacity="0.62" />
-
-  <!-- Layer 3 -->
   <polygon points="32,23 52,33 32,43 12,33" fill="#DB311C" opacity="0.76" />
-
-  <!-- Layer 2 -->
   <polygon points="32,18 52,28 32,38 12,28" fill="#C91F0F" opacity="0.88" />
-
-  <!-- Layer 1 (Top Knowledge Diamond Plane with Shadow & Gradient) -->
   <polygon points="32,11 52,21 32,31 12,21" fill="url(#tibTopGradient)" filter="url(#layerShadow)" stroke="#FF856D" stroke-width="0.75" />
-
-  <!-- ORKG Knowledge Graph Node Accent in Corner -->
   <circle cx="50" cy="14" r="3.5" fill="#00A6FB" stroke="#FFFFFF" stroke-width="1" />
   <circle cx="43" cy="8" r="2" fill="#00A6FB" opacity="0.8" />
   <line x1="44.5" y1="9.5" x2="48" y2="12.5" stroke="#00A6FB" stroke-width="1" opacity="0.7" />

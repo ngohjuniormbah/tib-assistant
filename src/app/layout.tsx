@@ -33,7 +33,6 @@ export default async function RootLayout({
   children: ReactNode;
 }) {
   return (
-    // next-themes sets `class`/`data-theme` before paint, which the server cannot know
     <html lang="en" suppressHydrationWarning>
       <head>
         <PublicEnvScript />
