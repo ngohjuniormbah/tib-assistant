@@ -1,4 +1,4 @@
-import { faCog, faDownload } from '@fortawesome/free-solid-svg-icons';
+import { faCog, faDownload, faShareNodes } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Badge, Button, Tooltip, useOverlayState } from '@heroui/react';
 import { isEqual } from 'lodash';
@@ -7,6 +7,7 @@ import AssetsItem from '@/components/AssetsSidebar/AssetsItem/AssetsItem';
 import ConfigureAssetsModal from '@/components/AssetsSidebar/ConfigureAssetsModal/ConfigureAssetsModal';
 import ExportAssetsModal from '@/components/AssetsSidebar/ExportAssetsModal/ExportAssetsModal';
 import useStore from '@/components/AssetsSidebar/hooks/useStore';
+import ShareModal from '@/components/ShareModal/ShareModal';
 
 type AssetsSidebarContentProps = {
   assistantId: string;
@@ -14,26 +15,21 @@ type AssetsSidebarContentProps = {
   outputAssets: string[];
 };
 
-/**
- * The assets panel's contents, without the panel it sits in: the desktop column supplies
- * the resizable `box-white` box, the assets drawer supplies its own panel. Keeping the two
- * apart lets a single instance move between them instead of being mounted twice.
- */
 export default function AssetsSidebarContent({
   assistantId,
   inputAssets,
   outputAssets,
 }: AssetsSidebarContentProps) {
   const configureAssetsModalState = useOverlayState();
-
   const exportAssetsModalState = useOverlayState();
+  const shareModalState = useOverlayState();
 
   const store = useStore();
 
   const activeAssets = store.enabledAssets?.[assistantId];
   const activeInputAssets = activeAssets?.inputAssets ?? inputAssets;
   const activeOutputAssets = activeAssets?.outputAssets ?? outputAssets;
-  // TODO replace isInputAsset with a separate lists for input and output assets (needs to update AssetsItem and ConfigureAssetsModal)
+
   const assetsToRender = [
     ...activeInputAssets.map((id) => ({ id, isInputAsset: true })),
     ...activeOutputAssets.map((id) => ({
@@ -52,8 +48,22 @@ export default function AssetsSidebarContent({
           ))}
         </div>
         <div className="flex justify-center gap-1">
-          {/* independent actions, not a segmented control — keep them spaced */}
           <div className="flex items-center gap-1">
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <Button
+                  onPress={shareModalState.open}
+                  size="sm"
+                  isIconOnly
+                  aria-label="Share workspace with coworkers"
+                  variant="tertiary"
+                >
+                  <FontAwesomeIcon icon={faShareNodes} />
+                </Button>
+              </Tooltip.Trigger>
+              <Tooltip.Content>Share workspace with coworkers</Tooltip.Content>
+            </Tooltip>
+
             <Tooltip delay={0}>
               <Tooltip.Trigger>
                 <Button
@@ -68,6 +78,7 @@ export default function AssetsSidebarContent({
               </Tooltip.Trigger>
               <Tooltip.Content>Export assets</Tooltip.Content>
             </Tooltip>
+
             <Tooltip delay={0}>
               <Tooltip.Trigger>
                 <Button
@@ -110,6 +121,13 @@ export default function AssetsSidebarContent({
         <ExportAssetsModal
           onClose={exportAssetsModalState.close}
           onOpenChange={exportAssetsModalState.close}
+        />
+      )}
+      {shareModalState.isOpen && (
+        <ShareModal
+          isOpen={shareModalState.isOpen}
+          onClose={shareModalState.close}
+          assistantId={assistantId}
         />
       )}
     </>

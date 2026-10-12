@@ -75,12 +75,8 @@ export default function IdeationStarterModal({
   const [loadingProblemId, setLoadingProblemId] = useState<string | null>(null);
 
   // Prior-Art Collision Audit state
-  const [auditHypothesis, setAuditHypothesis] = useState(
-    'Using diffusion probabilistic decoders with ontology-guided negative sampling for zero-shot scientific entity linking.'
-  );
-  const [auditKeywords, setAuditKeywords] = useState(
-    'diffusion decoders, ontology negative sampling, zero-shot entity linking'
-  );
+  const [auditHypothesis, setAuditHypothesis] = useState('');
+  const [auditKeywords, setAuditKeywords] = useState('');
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<PriorArtCollisionCheck | null>(
     null
@@ -287,8 +283,8 @@ export default function IdeationStarterModal({
 
               {/* Tab 1: Prior-Art Collision Audit Tab */}
               <Tabs.Panel id="collision" className="pt-4 space-y-4">
-                {/* Multi-Platform Radar Banner */}
-                <div className="p-3 rounded-xl bg-surface-secondary/60 border border-border space-y-2">
+                {/* Multi-Platform Radar Coverage Banner */}
+                <div className="p-3 rounded-xl bg-surface-secondary/60 border border-border">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                       <FontAwesomeIcon
@@ -303,45 +299,6 @@ export default function IdeationStarterModal({
                       <Chip size="sm">ORKG Knowledge Graph</Chip>
                     </div>
                   </div>
-
-                  {/* 1-Click Presentation Demo Scenarios */}
-                  <div className="flex items-center gap-2 pt-1 border-t border-border/50 flex-wrap">
-                    <span className="text-[11px] text-muted font-medium">
-                      Demo Scenarios:
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="text-xs h-6 px-2.5"
-                      onPress={() => {
-                        const h =
-                          'Using diffusion probabilistic decoders with ontology-guided negative sampling for zero-shot scientific entity linking.';
-                        const k =
-                          'diffusion decoders, ontology negative sampling, zero-shot entity linking';
-                        setAuditHypothesis(h);
-                        setAuditKeywords(k);
-                        runAuditWithParams(h, k);
-                      }}
-                    >
-                      🚀 Test Novel Frontier (Pioneer)
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="text-xs h-6 px-2.5"
-                      onPress={() => {
-                        const h =
-                          'Dense passage retrieval with dual-encoder BERT architectures for open domain question answering.';
-                        const k =
-                          'dense passage retrieval, dual-encoder, question answering';
-                        setAuditHypothesis(h);
-                        setAuditKeywords(k);
-                        runAuditWithParams(h, k);
-                      }}
-                    >
-                      ⚠️ Test Published Idea (Scoop Test)
-                    </Button>
-                  </div>
                 </div>
 
                 <form
@@ -354,7 +311,7 @@ export default function IdeationStarterModal({
                     </Label>
                     <TextArea
                       rows={2}
-                      placeholder="e.g. Using diffusion probabilistic decoders with knowledge graph embeddings for relation extraction."
+                      placeholder="e.g. Using diffusion probabilistic decoders with ontology-guided negative sampling for zero-shot scientific entity linking."
                       value={auditHypothesis}
                       onChange={(e) => setAuditHypothesis(e.target.value)}
                       required
@@ -366,7 +323,7 @@ export default function IdeationStarterModal({
                       Key Domain Keywords (Comma Separated)
                     </Label>
                     <Input
-                      placeholder="e.g. diffusion, knowledge graph, relation extraction"
+                      placeholder="e.g. diffusion decoders, ontology negative sampling, zero-shot entity linking"
                       value={auditKeywords}
                       onChange={(e) => setAuditKeywords(e.target.value)}
                     />

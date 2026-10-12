@@ -19,7 +19,7 @@ export function getStoredCollaborators(): Collaborator[] {
       return [
         {
           id: 'collab-owner',
-          name: 'You (Principal Investigator)',
+          name: 'You (Lead Researcher)',
           email: 'researcher@tib.eu',
           role: 'owner',
           addedAt: new Date().toISOString(),

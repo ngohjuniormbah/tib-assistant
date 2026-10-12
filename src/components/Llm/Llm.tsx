@@ -1,9 +1,12 @@
 import {
   faCheck,
+  faEye,
   faInfoCircle,
   faLightbulb,
+  faPen,
   faRotateLeft,
   faSearch,
+  faShareNodes,
   faShieldHalved,
   faTable,
 } from '@fortawesome/free-solid-svg-icons';
@@ -30,6 +33,7 @@ import ImportComparisonModal from '@/components/ImportComparisonModal/ImportComp
 import Message from '@/components/Llm/Message/Message';
 import useLlm from '@/components/Llm/useLlm';
 import OrkgNlQueryModal from '@/components/OrkgNlQueryModal/OrkgNlQueryModal';
+import ShareModal from '@/components/ShareModal/ShareModal';
 import sidebarsContext from '@/components/SidebarsProvider/sidebarsContext';
 import type { AttachedContext } from '@/components/TextareaLlm/TextareaLlm';
 import useIndexedDbStore from '@/components/useIndexedDbStore/useIndexedDbStore';
@@ -46,8 +50,13 @@ import {
   formatQuestionForChat,
   parseResearchQuestionItem,
 } from '@/lib/researchQuestionUtils';
+import {
+  applySharedWorkspaceToLocalDb,
+  parseSharedWorkspaceFromUrl,
+} from '@/lib/shareUtils';
 import { OrkgComparisonResult } from '@/services/orkgComparison';
 import { ChatMessage } from '@/types';
+import { CollaboratorRole, SharedWorkspacePayload } from '@/types/share';
 
 const TextareaLlm = dynamic(
   () => import('@/components/TextareaLlm/TextareaLlm'),
@@ -91,6 +100,39 @@ export default function Llm({
   const importComparisonModalState = useOverlayState();
   const nlQueryModalState = useOverlayState();
   const ideationStarterModalState = useOverlayState();
+  const shareModalState = useOverlayState();
+
+  // Shared workspace state (Google Workspace Viewer / Editor modes)
+  const [sharedWorkspace, setSharedWorkspace] =
+    useState<SharedWorkspacePayload | null>(null);
+  const [sharedRole, setSharedRole] = useState<CollaboratorRole | null>(null);
+
+  useEffect(() => {
+    const { payload, role } = parseSharedWorkspaceFromUrl();
+    if (payload) {
+      setSharedWorkspace(payload);
+      setSharedRole(role);
+    }
+  }, []);
+
+  const handleForkWorkspace = async () => {
+    if (!sharedWorkspace) return;
+    try {
+      await applySharedWorkspaceToLocalDb(sharedWorkspace.assets);
+      window.history.replaceState({}, '', window.location.pathname);
+      setSharedWorkspace(null);
+      setSharedRole(null);
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to copy shared workspace:', err);
+    }
+  };
+
+  const handleExitSharedMode = () => {
+    window.history.replaceState({}, '', window.location.pathname);
+    setSharedWorkspace(null);
+    setSharedRole(null);
+  };
 
   const {
     enabledTools: enabledToolsLocalStorage,
@@ -419,10 +461,10 @@ export default function Llm({
   return (
     <div className="box-white grow flex-1 !px-0 flex flex-col py-2 rounded overflow-hidden h-full">
       <div className="px-3 sm:px-6">
-        <div className="flex items-center mb-2 justify-between">
+        <div className="flex items-center mb-2 justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <h1 className="text-xl m-0">{assistant?.metadata.name}</h1>
-            <div className="flex gap-1">
+            <div className="flex gap-1 items-center">
               <Tooltip delay={0}>
                 <Tooltip.Trigger>
                   <Button
@@ -456,91 +498,143 @@ export default function Llm({
             </div>
           </div>
 
-          {assistantId === 'ideation' && (
-            <div className="flex gap-2 shrink-0">
+          <div className="flex items-center gap-2">
+            {/* Google Workspace Share Button */}
+            <Button
+              size="sm"
+              variant="primary"
+              onPress={shareModalState.open}
+              className="gap-1.5 font-medium shadow-xs"
+              aria-label="Share workspace with coworkers"
+            >
+              <FontAwesomeIcon icon={faShareNodes} size="sm" />
+              <span>Share</span>
+            </Button>
+
+            {assistantId === 'ideation' && (
               <Button
                 size="sm"
-                variant="primary"
+                variant="secondary"
                 onPress={ideationStarterModalState.open}
                 className="gap-2"
               >
                 <FontAwesomeIcon icon={faLightbulb} />
                 <span className="hidden sm:inline">Research Starters</span>
               </Button>
-            </div>
-          )}
+            )}
 
-          {assistantId === 'review' && (
-            <div className="flex gap-2 shrink-0">
-              <Button
-                size="sm"
-                variant="secondary"
-                onPress={() => {
-                  sendMessage({
-                    role: 'user',
-                    parts: [
-                      {
-                        type: 'text',
-                        text: 'Conduct an adversarial Reviewer 2 stress-test on this manuscript draft. Highlight the 3 most dangerous empirical or theoretical vulnerabilities, missing baselines, or reasons to reject at a top-tier conference. Provide constructive rebuttal strategies for each point.',
-                      },
-                    ],
-                  });
-                }}
-                className="gap-2"
-              >
-                <FontAwesomeIcon icon={faShieldHalved} />
-                <span className="hidden sm:inline">Reviewer 2 Stress-Test</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                onPress={() => {
-                  sendMessage({
-                    role: 'user',
-                    parts: [
-                      {
-                        type: 'text',
-                        text: 'Conduct an exhaustive conference peer review of this paper following the official conference rubric (Meta-Review Scorecard 1-10, Strengths, Reviewer 2 Vulnerabilities, Questions for Rebuttal, and Actionable Revision Roadmap).',
-                      },
-                    ],
-                  });
-                }}
-                className="gap-2"
-              >
-                <FontAwesomeIcon icon={faCheck} />
-                <span className="hidden sm:inline">Run Full Peer Review</span>
-              </Button>
-            </div>
-          )}
+            {assistantId === 'review' && (
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => {
+                    sendMessage({
+                      role: 'user',
+                      parts: [
+                        {
+                          type: 'text',
+                          text: 'Conduct an adversarial Reviewer 2 stress-test on this manuscript draft. Highlight the 3 most dangerous empirical or theoretical vulnerabilities, missing baselines, or reasons to reject at a top-tier conference. Provide constructive rebuttal strategies for each point.',
+                        },
+                      ],
+                    });
+                  }}
+                  className="gap-2"
+                >
+                  <FontAwesomeIcon icon={faShieldHalved} />
+                  <span className="hidden sm:inline">Reviewer 2 Stress-Test</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onPress={() => {
+                    sendMessage({
+                      role: 'user',
+                      parts: [
+                        {
+                          type: 'text',
+                          text: 'Conduct an exhaustive conference peer review of this paper following the official conference rubric (Meta-Review Scorecard 1-10, Strengths, Reviewer 2 Vulnerabilities, Questions for Rebuttal, and Actionable Revision Roadmap).',
+                        },
+                      ],
+                    });
+                  }}
+                  className="gap-2"
+                >
+                  <FontAwesomeIcon icon={faCheck} />
+                  <span className="hidden sm:inline">Run Full Peer Review</span>
+                </Button>
+              </div>
+            )}
 
-          {(assistantId === 'ideation' ||
-            assistantId === 'researchQuestions' ||
-            assistantId === 'relatedLiterature' ||
-            assistantId === 'paperRelatedWork') && (
-            <div className="flex gap-2 shrink-0">
-              <Button
-                size="sm"
-                variant="secondary"
-                onPress={nlQueryModalState.open}
-                className="gap-2"
-              >
-                <FontAwesomeIcon icon={faSearch} />
-                <span className="hidden sm:inline">Query ORKG</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                onPress={importComparisonModalState.open}
-                className="gap-2"
-              >
-                <FontAwesomeIcon icon={faTable} />
-                <span className="hidden sm:inline">Import ORKG comparison</span>
-              </Button>
-            </div>
-          )}
+            {(assistantId === 'ideation' ||
+              assistantId === 'researchQuestions' ||
+              assistantId === 'relatedLiterature' ||
+              assistantId === 'paperRelatedWork') && (
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={nlQueryModalState.open}
+                  className="gap-2"
+                >
+                  <FontAwesomeIcon icon={faSearch} />
+                  <span className="hidden sm:inline">Query ORKG</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onPress={importComparisonModalState.open}
+                  className="gap-2"
+                >
+                  <FontAwesomeIcon icon={faTable} />
+                  <span className="hidden sm:inline">Import ORKG comparison</span>
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
         {!isCompactViewport && infoAlert}
       </div>
+
+      {/* Google Workspace Shared Project Status Banner */}
+      {sharedWorkspace && (
+        <div className="mx-3 sm:mx-6 my-2 p-3 rounded-2xl bg-surface-secondary border border-border flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <FontAwesomeIcon
+              icon={sharedRole === 'viewer' ? faEye : faPen}
+              className="text-accent text-sm"
+            />
+            <div>
+              <span className="text-xs font-bold text-foreground">
+                Viewing Shared Workspace: &quot;{sharedWorkspace.projectTitle}&quot;
+              </span>
+              <span className="text-[11px] text-muted block">
+                Role: {sharedRole === 'viewer' ? 'Viewer (Read-Only)' : 'Editor (Full Access)'}. Created by {sharedWorkspace.owner.name}.
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {sharedRole === 'viewer' && (
+              <Button
+                size="sm"
+                variant="primary"
+                onPress={handleForkWorkspace}
+                className="text-xs"
+              >
+                Make a Copy to My Workspace
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onPress={handleExitSharedMode}
+              className="text-xs"
+            >
+              Exit Shared Mode
+            </Button>
+          </div>
+        </div>
+      )}
 
       {hasMissingAssets && (
         <div className="mx-3 sm:mx-6">
@@ -830,7 +924,7 @@ export default function Llm({
         isLoading={isLoading}
         defaultEnabledTools={defaultEnabledTools}
         assistantId={assistantId}
-        isDisabled={isDisabled || isAwaitingToolCallConfirmation}
+        isDisabled={isDisabled || isAwaitingToolCallConfirmation || sharedRole === 'viewer'}
         sendMessage={sendMessage}
       />
 
@@ -882,6 +976,14 @@ export default function Llm({
             }
             ideationStarterModalState.close();
           }}
+        />
+      )}
+
+      {shareModalState.isOpen && (
+        <ShareModal
+          isOpen={shareModalState.isOpen}
+          onClose={shareModalState.close}
+          assistantId={assistantId}
         />
       )}
     </div>
