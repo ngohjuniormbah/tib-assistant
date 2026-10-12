@@ -3,6 +3,7 @@
 import {
   faCheck,
   faCopy,
+  faEnvelope,
   faGear,
   faGlobe,
   faLock,
@@ -117,6 +118,35 @@ export default function ShareModal({
     setCollaborators(updated);
     saveStoredCollaborators(updated);
     toast.success('Collaborator access removed');
+  };
+
+  const handleSendEmailInvitation = async (collab: Collaborator) => {
+    try {
+      const snapshot = await createWorkspaceSnapshot({
+        projectId: `proj-${assistantId}`,
+        projectTitle,
+        generalAccess,
+        generalRole,
+        collaborators,
+      });
+
+      const shareLink = generateShareUrl(
+        snapshot,
+        collab.role === 'owner' ? 'editor' : collab.role
+      );
+      const subject = encodeURIComponent(
+        `Invitation to collaborate on TIB AIssistant: "${projectTitle}"`
+      );
+      const body = encodeURIComponent(
+        `Hello,\n\nYou have been invited to collaborate on the research project "${projectTitle}" on the TIB AIssistant platform with ${collab.role.toUpperCase()} permissions.\n\nOpen workspace link:\n${shareLink}\n\nBest regards,\nTIB AIssistant Research Team`
+      );
+
+      window.open(`mailto:${collab.email}?subject=${subject}&body=${body}`, '_blank');
+      toast.success(`Opening email client for ${collab.email}`);
+    } catch (err) {
+      console.error(err);
+      toast.danger('Failed to generate email invite');
+    }
   };
 
   const handleCopyLink = async () => {
@@ -295,6 +325,19 @@ export default function ShareModal({
                         <Chip size="sm">Owner</Chip>
                       ) : (
                         <>
+                          <Button
+                            size="sm"
+                            isIconOnly
+                            variant="ghost"
+                            aria-label={`Send email invite to ${collab.name}`}
+                            onPress={() => handleSendEmailInvitation(collab)}
+                            title="Open email invite"
+                          >
+                            <FontAwesomeIcon
+                              icon={faEnvelope}
+                              className="text-muted text-xs"
+                            />
+                          </Button>
                           <Select
                             selectedKey={collab.role}
                             onSelectionChange={(key) =>
@@ -341,7 +384,7 @@ export default function ShareModal({
               </ScrollShadow>
             </div>
 
-            {/* Section 3: General Access */}
+            {/* Section 3: General Access (Google Drive model) */}
             <div className="p-3.5 rounded-2xl bg-surface-secondary/50 border border-border space-y-2">
               <span className="text-xs font-bold text-foreground">
                 General access
