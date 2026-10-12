@@ -331,7 +331,6 @@ export default function ShareModal({
                             variant="ghost"
                             aria-label={`Send email invite to ${collab.name}`}
                             onPress={() => handleSendEmailInvitation(collab)}
-                            title="Open email invite"
                           >
                             <FontAwesomeIcon
                               icon={faEnvelope}
